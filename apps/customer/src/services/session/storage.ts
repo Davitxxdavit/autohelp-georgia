@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { LANGUAGE_IDS, type LanguageId } from '@/constants/languages';
+import { DEFAULT_LANGUAGE, LANGUAGE_IDS, type LanguageId } from '@/constants/languages';
 
 import { EMPTY_SESSION, type SessionSnapshot } from './types';
 
 const KEYS = {
   language: '@autohelp/language',
+  languageSelected: '@autohelp/languageSelected',
   onboardingCompleted: '@autohelp/onboardingCompleted',
   authenticated: '@autohelp/authenticated',
   phone: '@autohelp/phone',
@@ -19,15 +20,20 @@ function parseLanguage(value: string | null): LanguageId | null {
 }
 
 export async function readSession(): Promise<SessionSnapshot> {
-  const [language, onboarding, authenticated, phone] = await Promise.all([
-    AsyncStorage.getItem(KEYS.language),
-    AsyncStorage.getItem(KEYS.onboardingCompleted),
-    AsyncStorage.getItem(KEYS.authenticated),
-    AsyncStorage.getItem(KEYS.phone),
-  ]);
+  const [language, languageSelected, onboarding, authenticated, phone] =
+    await Promise.all([
+      AsyncStorage.getItem(KEYS.language),
+      AsyncStorage.getItem(KEYS.languageSelected),
+      AsyncStorage.getItem(KEYS.onboardingCompleted),
+      AsyncStorage.getItem(KEYS.authenticated),
+      AsyncStorage.getItem(KEYS.phone),
+    ]);
+
+  const parsedLanguage = parseLanguage(language);
 
   return {
-    language: parseLanguage(language),
+    language: parsedLanguage ?? DEFAULT_LANGUAGE,
+    languageSelected: languageSelected === 'true',
     onboardingCompleted: onboarding === 'true',
     authenticated: authenticated === 'true',
     phone,
@@ -35,7 +41,10 @@ export async function readSession(): Promise<SessionSnapshot> {
 }
 
 export async function writeLanguage(language: LanguageId): Promise<void> {
-  await AsyncStorage.setItem(KEYS.language, language);
+  await AsyncStorage.multiSet([
+    [KEYS.language, language],
+    [KEYS.languageSelected, 'true'],
+  ]);
 }
 
 export async function writeOnboardingCompleted(): Promise<void> {

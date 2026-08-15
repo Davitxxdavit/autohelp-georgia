@@ -8,6 +8,10 @@ import { AndroidNavigationBar } from '@/components/system/AndroidNavigationBar';
 import { SessionProvider } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 
+export const unstable_settings = {
+  initialRouteName: 'boot',
+};
+
 export default function RootLayout() {
   return (
     <SessionProvider>
@@ -23,6 +27,7 @@ export default function RootLayout() {
               animation: 'fade',
             }}
           >
+            <Stack.Screen name="boot" options={{ gestureEnabled: false }} />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(app)" />
           </Stack>

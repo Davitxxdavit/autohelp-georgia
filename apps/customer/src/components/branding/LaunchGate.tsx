@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -13,6 +22,19 @@ import { AutoHelpLaunchVisual } from '@/components/branding/AutoHelpLaunchVisual
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 
+type LaunchGateContextValue = {
+  /** True after the launch visual has finished (fade may still be running). */
+  launchComplete: boolean;
+};
+
+const LaunchGateContext = createContext<LaunchGateContextValue>({
+  launchComplete: false,
+});
+
+export function useLaunchGate(): LaunchGateContextValue {
+  return useContext(LaunchGateContext);
+}
+
 type LaunchGateProps = {
   children: ReactNode;
 };
@@ -23,10 +45,15 @@ type LaunchGateProps = {
  */
 export function LaunchGate({ children }: LaunchGateProps) {
   const [showLaunch, setShowLaunch] = useState(true);
+  const [launchComplete, setLaunchComplete] = useState(false);
   const overlayOpacity = useSharedValue(1);
   const reducedMotion = useReducedMotion();
   const dismissedRef = useRef(false);
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markLaunchComplete = useCallback(() => {
+    setLaunchComplete(true);
+  }, []);
 
   const dismissOverlay = useCallback(() => {
     if (dismissedRef.current) return;
@@ -40,6 +67,9 @@ export function LaunchGate({ children }: LaunchGateProps) {
 
   const handleLaunchComplete = useCallback(() => {
     if (dismissedRef.current) return;
+
+    // Allow routing as soon as the visual finishes — overlay is still fading.
+    markLaunchComplete();
 
     const fadeMs = reducedMotion ? timing.fast : timing.slow;
 
@@ -59,7 +89,7 @@ export function LaunchGate({ children }: LaunchGateProps) {
     safetyTimerRef.current = setTimeout(() => {
       dismissOverlay();
     }, fadeMs + 250);
-  }, [dismissOverlay, overlayOpacity, reducedMotion]);
+  }, [dismissOverlay, markLaunchComplete, overlayOpacity, reducedMotion]);
 
   useEffect(() => {
     return () => {
@@ -71,27 +101,34 @@ export function LaunchGate({ children }: LaunchGateProps) {
     opacity: overlayOpacity.value,
   }));
 
-  return (
-    <View style={styles.root}>
-      {children}
+  const contextValue = useMemo(
+    () => ({ launchComplete }),
+    [launchComplete],
+  );
 
-      {showLaunch ? (
-        <Animated.View
-          style={[styles.overlay, overlayStyle]}
-          // Block interaction only while visible; removed on dismiss
-          pointerEvents="auto"
-          accessibilityViewIsModal
-          accessibilityLabel="AutoHelp is launching"
-        >
-          <AutoHelpLaunchVisual
-            fullscreen
-            duration={timing.launch}
-            reducedMotion={!!reducedMotion}
-            onComplete={handleLaunchComplete}
-          />
-        </Animated.View>
-      ) : null}
-    </View>
+  return (
+    <LaunchGateContext.Provider value={contextValue}>
+      <View style={styles.root}>
+        {children}
+
+        {showLaunch ? (
+          <Animated.View
+            style={[styles.overlay, overlayStyle]}
+            // Block interaction only while visible; removed on dismiss
+            pointerEvents="auto"
+            accessibilityViewIsModal
+            accessibilityLabel="AutoHelp is launching"
+          >
+            <AutoHelpLaunchVisual
+              fullscreen
+              duration={timing.launch}
+              reducedMotion={!!reducedMotion}
+              onComplete={handleLaunchComplete}
+            />
+          </Animated.View>
+        ) : null}
+      </View>
+    </LaunchGateContext.Provider>
   );
 }
 

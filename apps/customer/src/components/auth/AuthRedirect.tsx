@@ -1,67 +1,96 @@
 import { useEffect } from 'react';
 import { useRouter, useRootNavigationState, useSegments } from 'expo-router';
 
+import { useLaunchGate } from '@/components/branding/LaunchGate';
 import { useSession } from '@/services/session/SessionProvider';
-import {
-  resolveSessionDestination,
-  type SessionDestination,
-} from '@/services/session/types';
 
-function isAtDestination(
-  destination: SessionDestination,
+function authScreen(
   group: string | undefined,
   screen: string | undefined,
-): boolean {
-  if (destination === '/(auth)/language') {
-    return group === '(auth)' && screen === 'language';
-  }
-  if (destination === '/(auth)/onboarding') {
-    return group === '(auth)' && screen === 'onboarding';
-  }
-  if (destination === '/(auth)/login') {
-    return group === '(auth)' && (screen === 'login' || screen === 'verify-otp');
-  }
-  return group === '(app)';
+): 'language' | 'onboarding' | 'login' | 'otp' | null {
+  if (group !== '(auth)') return null;
+  if (screen === 'language') return 'language';
+  if (screen === 'onboarding') return 'onboarding';
+  if (screen === 'login') return 'login';
+  if (screen === 'verify-otp') return 'otp';
+  return null;
 }
 
 /**
- * Language-first gate. Waits until:
- * 1) session isLoading === false
- * 2) root navigation container is ready
- * before calling router.replace.
+ * Sequential gate. Forward navigation from language / onboarding / login
+ * is owned by those screens so AuthRedirect cannot skip to Home.
  *
- * Priority: language → onboarding → login → app
+ * Launch → language → onboarding → login → home
  */
 export function AuthRedirect() {
   const router = useRouter();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
-  const { isLoading, session } = useSession();
+  const { initializing, session } = useSession();
+  const { launchComplete } = useLaunchGate();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (initializing) return;
+    if (!launchComplete) return;
     if (!navigationState?.key) return;
 
-    const destination = resolveSessionDestination(session);
     const group = segments[0] as string | undefined;
     const screen = segments[1] as string | undefined;
+    const current = authScreen(group, screen);
+    const atApp = group === '(app)';
 
-    if (
-      group === '(auth)' &&
-      screen === 'verify-otp' &&
-      session.language &&
-      session.onboardingCompleted &&
-      !session.authenticated
-    ) {
+    // 1. Language is always first when unconfirmed — never onboarding/home.
+    if (!session.languageSelected) {
+      if (current !== 'language') {
+        router.replace('/(auth)/language');
+      }
       return;
     }
 
-    if (isAtDestination(destination, group, screen)) {
+    // 2. Just confirmed language: always onboarding. Never Home.
+    if (current === 'language') {
+      router.replace('/(auth)/onboarding');
       return;
     }
 
-    router.replace(destination);
-  }, [isLoading, navigationState?.key, router, segments, session]);
+    // 3. Onboarding carousel owns its own forward nav (slides 1→2→3→login).
+    if (current === 'onboarding') {
+      return;
+    }
+
+    if (!session.onboardingCompleted) {
+      router.replace('/(auth)/onboarding');
+      return;
+    }
+
+    // 4. Login / OTP own forward nav to Home after mock sign-in.
+    if (current === 'login' || current === 'otp') {
+      if (session.authenticated && current === 'otp') {
+        return;
+      }
+      if (!session.authenticated) {
+        return;
+      }
+    }
+
+    if (!session.authenticated) {
+      if (current !== 'login' && current !== 'otp') {
+        router.replace('/(auth)/login');
+      }
+      return;
+    }
+
+    if (!atApp) {
+      router.replace('/(app)/(tabs)');
+    }
+  }, [
+    initializing,
+    launchComplete,
+    navigationState?.key,
+    router,
+    segments,
+    session,
+  ]);
 
   return null;
 }

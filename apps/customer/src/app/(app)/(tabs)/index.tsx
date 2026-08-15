@@ -33,10 +33,7 @@ export default function HomeScreen() {
 
       <EmergencyHero
         onPressCta={() => {
-          router.push({
-            pathname: '/request/[service]',
-            params: { service: 'mechanic' },
-          });
+          router.push('/battery/index');
         }}
       />
 

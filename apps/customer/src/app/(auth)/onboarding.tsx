@@ -1,12 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   BackHandler,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
+  FlatList,
   StyleSheet,
   useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ViewToken,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,24 +16,26 @@ import { OnboardingSlide } from '@/components/auth/OnboardingSlide';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
-import { copy } from '@/content/copy';
+import { getCopy } from '@/content/copy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
-const SLIDES = copy.onboarding.slides;
-
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const { completeOnboarding } = useSession();
-  const scrollRef = useRef<ScrollView>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const { session, completeOnboarding } = useSession();
+  const copy = getCopy(session.language);
+  const slides = copy.onboarding.slides;
+  const listRef = useRef<FlatList<(typeof slides)[number]>>(null);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [pagerWidth, setPagerWidth] = useState(windowWidth);
 
-  const isLast = index >= SLIDES.length - 1;
+  const pageWidth = pagerWidth > 0 ? pagerWidth : windowWidth;
+  const isLast = index >= slides.length - 1;
 
   const finish = useCallback(async () => {
     if (busy) return;
@@ -47,11 +50,14 @@ export default function OnboardingScreen() {
 
   const goTo = useCallback(
     (nextIndex: number) => {
-      const clamped = Math.max(0, Math.min(nextIndex, SLIDES.length - 1));
-      scrollRef.current?.scrollTo({ x: clamped * width, animated: true });
+      const clamped = Math.max(0, Math.min(nextIndex, slides.length - 1));
+      listRef.current?.scrollToIndex({
+        index: clamped,
+        animated: true,
+      });
       setIndex(clamped);
     },
-    [width],
+    [slides.length],
   );
 
   const goNext = useCallback(() => {
@@ -67,7 +73,8 @@ export default function OnboardingScreen() {
       goTo(index - 1);
       return true;
     }
-    return false;
+    // Do not pop into Home / boot. Stay on slide 1.
+    return true;
   }, [goTo, index]);
 
   useFocusEffect(
@@ -79,12 +86,37 @@ export default function OnboardingScreen() {
     }, [goBack]),
   );
 
-  const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (next >= 0 && next < SLIDES.length) {
+  const onMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (pageWidth <= 0) return;
+    const next = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+    if (next >= 0 && next < slides.length) {
       setIndex(next);
     }
   };
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const first = viewableItems[0];
+      if (first?.index != null) {
+        setIndex(first.index);
+      }
+    },
+  ).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+  }).current;
+
+  const getItemLayout = useCallback(
+    (_: unknown, itemIndex: number) => ({
+      length: pageWidth,
+      offset: pageWidth * itemIndex,
+      index: itemIndex,
+    }),
+    [pageWidth],
+  );
+
+  const listExtraData = useMemo(() => index, [index]);
 
   return (
     <View
@@ -98,7 +130,7 @@ export default function OnboardingScreen() {
     >
       <View style={styles.topBar}>
         <View style={styles.dots}>
-          {SLIDES.map((item, dotIndex) => (
+          {slides.map((item, dotIndex) => (
             <View
               key={item.id}
               style={[styles.dot, dotIndex === index && styles.dotActive]}
@@ -118,27 +150,50 @@ export default function OnboardingScreen() {
         </AnimatedPressable>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
+        data={slides}
+        extraData={listExtraData}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         bounces
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScrollEnd}
-        onScrollEndDrag={onScrollEnd}
-        scrollEventThrottle={16}
+        onMomentumScrollEnd={onMomentumEnd}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        getItemLayout={getItemLayout}
+        onScrollToIndexFailed={({ index: failedIndex }) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({
+              index: failedIndex,
+              animated: true,
+            });
+          }, 50);
+        }}
+        onLayout={(event) => {
+          const nextWidth = event.nativeEvent.layout.width;
+          if (nextWidth > 0 && nextWidth !== pagerWidth) {
+            setPagerWidth(nextWidth);
+          }
+        }}
+        initialNumToRender={3}
+        windowSize={3}
+        removeClippedSubviews={false}
         style={styles.pager}
-        contentContainerStyle={styles.pagerContent}
-      >
-        {SLIDES.map((slide, slideIndex) => (
-          <View key={slide.id} style={[styles.page, { width }]}>
+        renderItem={({ item, index: slideIndex }) => (
+          <View style={{ width: pageWidth, flex: 1 }}>
             <View style={styles.pageInner}>
-              <OnboardingSlide slide={slide} index={slideIndex} />
+              <OnboardingSlide
+                slide={item}
+                index={slideIndex}
+                active={slideIndex === index}
+              />
             </View>
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
 
       <View style={styles.footer}>
         <PrimaryButton
@@ -183,12 +238,6 @@ const styles = StyleSheet.create({
   },
   pager: {
     flex: 1,
-  },
-  pagerContent: {
-    flexGrow: 1,
-  },
-  page: {
-    flexGrow: 1,
   },
   pageInner: {
     flex: 1,

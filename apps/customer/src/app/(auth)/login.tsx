@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhoneInput, isValidGeMobile } from '@/components/auth/PhoneInput';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
-import { copy } from '@/content/copy';
+import { getCopy } from '@/content/copy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -14,9 +14,17 @@ import { spacing } from '@/theme/spacing';
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { resetAppStateForDev } = useSession();
+  const { session, resetAppStateForDev } = useSession();
+  const copy = getCopy(session.language);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => sub.remove();
+    }, []),
+  );
 
   const onContinue = () => {
     if (!isValidGeMobile(phone)) {

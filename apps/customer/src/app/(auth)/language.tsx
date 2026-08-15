@@ -11,7 +11,7 @@ import {
   LANGUAGES,
   type LanguageId,
 } from '@/constants/languages';
-import { copy } from '@/content/copy';
+import { getCopy } from '@/content/copy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -24,6 +24,7 @@ export default function LanguageScreen() {
     session.language ?? DEFAULT_LANGUAGE,
   );
   const [saving, setSaving] = useState(false);
+  const copy = getCopy(selected);
 
   // Prevent Android back from leaving first-launch into an invalid route
   useFocusEffect(
@@ -38,6 +39,7 @@ export default function LanguageScreen() {
     setSaving(true);
     try {
       await setLanguage(selected);
+      // Always onboarding next — do not let leftover auth flags skip to Home.
       router.replace('/(auth)/onboarding');
     } finally {
       setSaving(false);
@@ -62,6 +64,7 @@ export default function LanguageScreen() {
               ? () => {
                   void (async () => {
                     await resetAppStateForDev();
+                    setSelected(DEFAULT_LANGUAGE);
                     Alert.alert(
                       'DEV reset',
                       'Cleared language, onboarding, and mock auth. Reload if the flow does not restart.',

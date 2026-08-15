@@ -21,14 +21,22 @@ export type OnboardingSlideData = {
   id: string;
   title: string;
   description: string;
+  caption?: string;
 };
 
 export type OnboardingSlideProps = {
   slide: OnboardingSlideData;
   index: number;
+  active: boolean;
 };
 
-function SlideVisual({ index }: { index: number }) {
+function SlideVisual({
+  index,
+  caption,
+}: {
+  index: number;
+  caption?: string;
+}) {
   if (index === 0) {
     return (
       <View style={styles.visualInner}>
@@ -55,14 +63,16 @@ function SlideVisual({ index }: { index: number }) {
       <View style={styles.trackBar}>
         <View style={styles.trackFill} />
       </View>
-      <AppText variant="caption" color="textMuted">
-        სპეციალისტი გზაშია
-      </AppText>
+      {caption ? (
+        <AppText variant="caption" color="textMuted">
+          {caption}
+        </AppText>
+      ) : null}
     </View>
   );
 }
 
-export function OnboardingSlide({ slide, index }: OnboardingSlideProps) {
+export function OnboardingSlide({ slide, index, active }: OnboardingSlideProps) {
   const reducedMotion = useReducedMotion();
   const opacity = useSharedValue(reducedMotion ? 1 : 0);
   const translateX = useSharedValue(reducedMotion ? 0 : 28);
@@ -70,6 +80,13 @@ export function OnboardingSlide({ slide, index }: OnboardingSlideProps) {
 
   useEffect(() => {
     if (reducedMotion) {
+      opacity.value = 1;
+      translateX.value = 0;
+      artX.value = 0;
+      return;
+    }
+
+    if (!active) {
       opacity.value = 1;
       translateX.value = 0;
       artX.value = 0;
@@ -90,7 +107,7 @@ export function OnboardingSlide({ slide, index }: OnboardingSlideProps) {
       duration: timing.entrance + 80,
       easing: ease,
     });
-  }, [artX, index, opacity, reducedMotion, slide.id, translateX]);
+  }, [active, artX, index, opacity, reducedMotion, slide.id, translateX]);
 
   const contentStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -110,7 +127,7 @@ export function OnboardingSlide({ slide, index }: OnboardingSlideProps) {
           radiusToken="xl"
           style={styles.art}
         >
-          <SlideVisual index={index} />
+          <SlideVisual index={index} caption={slide.caption} />
         </GradientSurface>
       </Animated.View>
 

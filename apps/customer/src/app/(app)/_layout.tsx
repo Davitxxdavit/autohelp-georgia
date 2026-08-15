@@ -14,6 +14,7 @@ export default function AppLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="battery" />
         <Stack.Screen
           name="request/[service]"
           options={{

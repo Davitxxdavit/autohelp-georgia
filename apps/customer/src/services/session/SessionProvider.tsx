@@ -28,6 +28,8 @@ import {
 type SessionContextValue = {
   /** True until AsyncStorage session has been read once */
   isLoading: boolean;
+  /** Alias: session hydration in progress */
+  initializing: boolean;
   /** Alias: !isLoading */
   ready: boolean;
   session: SessionSnapshot;
@@ -72,7 +74,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback(async (language: LanguageId) => {
     await writeLanguage(language);
-    setSession((prev) => ({ ...prev, language }));
+    setSession((prev) => ({ ...prev, language, languageSelected: true }));
   }, []);
 
   const completeOnboarding = useCallback(async () => {
@@ -105,10 +107,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const ready = !isLoading;
+  const initializing = isLoading;
 
   const value = useMemo<SessionContextValue>(
     () => ({
       isLoading,
+      initializing,
       ready,
       session,
       destination: resolveSessionDestination(session),
@@ -120,6 +124,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }),
     [
       isLoading,
+      initializing,
       ready,
       session,
       setLanguage,

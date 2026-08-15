@@ -6,9 +6,12 @@ import { SESSION_STORAGE_KEYS } from '@/services/session/storage';
  * DEV ONLY — clears AutoHelp first-launch / auth session keys.
  * Does NOT clear vehicles or request drafts.
  *
- * Usage (Metro / temporary call site):
- *   import { resetAppState } from '@/services/storage/reset';
- *   await resetAppState();
+ * Usage:
+ *   Profile → Development → Reset App Session (__DEV__ only)
+ *   Long-press the AutoHelp label on Language or Login.
+ *   Or:
+ *     import { resetAppState } from '@/services/storage/reset';
+ *     await resetAppState();
  */
 export async function resetAppState(): Promise<void> {
   if (!__DEV__) {
@@ -18,12 +21,13 @@ export async function resetAppState(): Promise<void> {
 
   await AsyncStorage.multiRemove([
     SESSION_STORAGE_KEYS.language,
+    SESSION_STORAGE_KEYS.languageSelected,
     SESSION_STORAGE_KEYS.onboardingCompleted,
     SESSION_STORAGE_KEYS.authenticated,
     SESSION_STORAGE_KEYS.phone,
   ]);
 
   console.log(
-    '[AutoHelp DEV] Cleared language / onboarding / mock auth session keys. Reload the app.',
+    '[AutoHelp DEV] Cleared language / onboarding / mock auth session keys.',
   );
 }

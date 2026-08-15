@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { SERVICES } from '@/constants/services';
+import { CUSTOMER_MVP_SERVICES } from '@/constants/services';
 import { spacing } from '@/theme/spacing';
 
 import { ServiceCard } from './ServiceCard';
@@ -11,7 +11,7 @@ export function ServicesSection() {
     <View style={styles.root}>
       <AppText variant="h3">რა დაგჭირდათ?</AppText>
       <View style={styles.grid}>
-        {SERVICES.map((service) => (
+        {CUSTOMER_MVP_SERVICES.map((service) => (
           <ServiceCard key={service.id} service={service} />
         ))}
       </View>

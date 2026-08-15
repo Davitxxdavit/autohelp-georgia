@@ -1,7 +1,10 @@
-import type { LanguageId } from '@/constants/languages';
+import { DEFAULT_LANGUAGE, type LanguageId } from '@/constants/languages';
 
 export type SessionSnapshot = {
-  language: LanguageId | null;
+  /** UI language. Fresh installs default to ka without confirming selection. */
+  language: LanguageId;
+  /** True only after the user confirms a language on the picker. */
+  languageSelected: boolean;
   onboardingCompleted: boolean;
   authenticated: boolean;
   /** Last phone used for mock OTP flow (E.164-ish local format without +995) */
@@ -9,7 +12,8 @@ export type SessionSnapshot = {
 };
 
 export const EMPTY_SESSION: SessionSnapshot = {
-  language: null,
+  language: DEFAULT_LANGUAGE,
+  languageSelected: false,
   onboardingCompleted: false,
   authenticated: false,
   phone: null,
@@ -24,8 +28,8 @@ export type SessionDestination =
 export function resolveSessionDestination(
   session: SessionSnapshot,
 ): SessionDestination {
-  // Language is always first — never skip when unset, even if other flags are true.
-  if (!session.language) return '/(auth)/language';
+  // Strict flags only. A stored @autohelp/language value is not confirmation.
+  if (!session.languageSelected) return '/(auth)/language';
   if (!session.onboardingCompleted) return '/(auth)/onboarding';
   if (!session.authenticated) return '/(auth)/login';
   return '/(app)/(tabs)';

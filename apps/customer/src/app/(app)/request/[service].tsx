@@ -1,26 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
+  BackHandler,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
+import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { Surface } from '@/components/ui/Surface';
 import { SERVICE_ICON_KIND } from '@/constants/serviceIcons';
-import { getServiceById, isServiceId } from '@/constants/services';
+import {
+  getServiceById,
+  isCustomerMvpServiceId,
+  isServiceId,
+} from '@/constants/services';
 import { LocationCard } from '@/features/requests/components/LocationCard';
-import { OptionChip } from '@/features/requests/components/OptionChip';
+import { OptionSelectCard } from '@/features/requests/components/OptionSelectCard';
 import { RequestSummary } from '@/features/requests/components/RequestSummary';
 import {
-  ESTIMATED_PRICE,
-  MOCK_LOCATION_LABEL,
+  getServicePricing,
+  MOCK_LOCATION,
+  pricingSummaryLabel,
   SERVICE_QUESTIONS,
 } from '@/features/requests/questions';
 import { createDraftRequest } from '@/features/requests/storage';
@@ -33,20 +37,24 @@ import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+
+type WizardStep = 'need' | 'vehicle' | 'location' | 'confirm';
+
+const STEPS: WizardStep[] = ['need', 'vehicle', 'location', 'confirm'];
 
 export default function RequestServiceScreen() {
   const router = useRouter();
   const { service: serviceParam } = useLocalSearchParams<{ service: string }>();
   const serviceId = typeof serviceParam === 'string' ? serviceParam : '';
   const service = isServiceId(serviceId) ? getServiceById(serviceId) : undefined;
+  const mvpAllowed = isCustomerMvpServiceId(serviceId);
   const { vehicles, primaryVehicle, ready } = useVehicles();
 
+  const [step, setStep] = useState<WizardStep>('need');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
     null,
   );
   const [optionId, setOptionId] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -57,41 +65,74 @@ export default function RequestServiceScreen() {
   }, [primaryVehicle, selectedVehicleId]);
 
   const question = service ? SERVICE_QUESTIONS[service.id] : null;
+  const pricing = service ? getServicePricing(service.id) : null;
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
-  const estimatedPrice = service ? ESTIMATED_PRICE[service.id] : '—';
 
   const problemLabel = useMemo(() => {
-    if (!question) return '—';
-    if (question.mode === 'notes') return notes.trim() || '—';
-    if (question.mode === 'location_focus') return MOCK_LOCATION_LABEL;
-    const option = question.options.find((item) => item.id === optionId);
-    return option?.label ?? '—';
-  }, [notes, optionId, question]);
+    if (!question || question.mode !== 'options') return '—';
+    return question.options.find((item) => item.id === optionId)?.label ?? '—';
+  }, [optionId, question]);
 
-  const canSubmit = Boolean(
-    service &&
-      selectedVehicle &&
-      (question?.mode === 'location_focus' ||
-        (question?.mode === 'notes' && notes.trim().length > 0) ||
-        (question?.mode === 'options' && optionId)),
+  const stepIndex = STEPS.indexOf(step);
+
+  const goNext = useCallback(() => {
+    setFormError(null);
+    if (step === 'need') {
+      if (!optionId) {
+        setFormError('Please select an option');
+        return;
+      }
+      setStep('vehicle');
+      return;
+    }
+    if (step === 'vehicle') {
+      if (!selectedVehicleId) {
+        setFormError('Please select a vehicle');
+        return;
+      }
+      setStep('location');
+      return;
+    }
+    if (step === 'location') {
+      setStep('confirm');
+    }
+  }, [optionId, selectedVehicleId, step]);
+
+  const goBack = useCallback(() => {
+    setFormError(null);
+    if (step === 'need') {
+      router.back();
+      return true;
+    }
+    const prev = STEPS[Math.max(0, stepIndex - 1)];
+    setStep(prev);
+    return true;
+  }, [router, step, stepIndex]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () =>
+        goBack(),
+      );
+      return () => sub.remove();
+    }, [goBack]),
   );
 
   const onSubmit = async () => {
-    if (!service || !selectedVehicle || !canSubmit || submitting) {
-      setFormError('შეავსე ყველა სავალდებულო ველი');
+    if (!service || !selectedVehicle || !optionId || !pricing || submitting) {
+      setFormError('Please complete all steps');
       return;
     }
 
     setSubmitting(true);
     setFormError(null);
     try {
-      // MOCK — local draft only. No mechanic matching / backend.
       const request = await createDraftRequest({
         vehicleId: selectedVehicle.id,
         serviceId: service.id,
         details: problemLabel,
-        locationLabel: MOCK_LOCATION_LABEL,
-        estimatedPriceLabel: estimatedPrice,
+        locationLabel: MOCK_LOCATION.label,
+        estimatedPriceLabel: pricingSummaryLabel(pricing),
       });
 
       router.replace({
@@ -103,25 +144,46 @@ export default function RequestServiceScreen() {
     }
   };
 
-  if (!service || !question) {
+  if (!service || !question || !pricing || !mvpAllowed) {
     return (
       <View style={[styles.screen, styles.centered]}>
         <AppText variant="body" color="textSecondary">
-          სერვისი ვერ მოიძებნა
+          This service is not available in the current MVP.
+        </AppText>
+        <PrimaryButton label="Back to Home" onPress={() => router.replace('/(app)/(tabs)')} />
+      </View>
+    );
+  }
+
+  if (question.mode !== 'options') {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <AppText variant="body" color="textSecondary">
+          This service flow is not configured for MVP.
         </AppText>
       </View>
     );
   }
 
+  const screenTitle = service.requestTitle;
+
   return (
     <>
-      <Stack.Screen options={{ title: service.title }} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <Stack.Screen options={{ title: screenTitle }} />
+      <View style={styles.screen}>
+        <View style={styles.progress}>
+          {STEPS.map((item, index) => (
+            <View
+              key={item}
+              style={[
+                styles.progressDot,
+                index <= stepIndex && styles.progressDotActive,
+              ]}
+            />
+          ))}
+        </View>
+
         <ScrollView
-          style={styles.screen}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -129,87 +191,82 @@ export default function RequestServiceScreen() {
           <Surface elevated padded style={styles.hero}>
             <ServiceIcon kind={SERVICE_ICON_KIND[service.id]} size={28} />
             <View style={styles.heroCopy}>
-              <AppText variant="h3">{service.title}</AppText>
+              <AppText variant="h3">{screenTitle}</AppText>
               <AppText variant="caption" color="textSecondary">
-                {service.description}
+                {service.emoji} {service.title}
               </AppText>
             </View>
           </Surface>
 
-          <View style={styles.section}>
-            <AppText variant="h3">რომელი მანქანისთვის გჭირდება დახმარება?</AppText>
-            {!ready ? (
-              <AppText variant="caption" color="textMuted">
-                იტვირთება…
-              </AppText>
-            ) : vehicles.length === 0 ? (
-              <Surface elevated padded style={styles.emptyVehicle}>
-                <AppText variant="bodyMedium">ჯერ მანქანა არ დაგიმატებია</AppText>
-                <PrimaryButton
-                  label="მანქანის დამატება"
-                  onPress={() => router.push('/vehicle/add')}
-                />
-              </Surface>
-            ) : (
-              <View style={styles.vehicleList}>
-                {vehicles.map((vehicle, index) => (
-                  <VehicleCard
-                    key={vehicle.id}
-                    vehicle={vehicle}
-                    index={index}
-                    compact
-                    selected={selectedVehicleId === vehicle.id}
-                    onPress={() => setSelectedVehicleId(vehicle.id)}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <AppText variant="h3">{question.prompt}</AppText>
-            {question.mode === 'options' ? (
+          {step === 'need' ? (
+            <View style={styles.section}>
+              <AppText variant="h3">{question.prompt}</AppText>
               <View style={styles.options}>
-                {question.options.map((option) => (
-                  <OptionChip
+                {question.options.map((option, index) => (
+                  <OptionSelectCard
                     key={option.id}
                     label={option.label}
+                    index={index}
                     selected={optionId === option.id}
                     onPress={() => setOptionId(option.id)}
                   />
                 ))}
               </View>
-            ) : null}
-            {question.mode === 'notes' ? (
-              <TextInput
-                value={notes}
-                onChangeText={setNotes}
-                placeholder={question.placeholder}
-                placeholderTextColor={colors.textMuted}
-                multiline
-                textAlignVertical="top"
-                style={styles.notes}
-                accessibilityLabel={question.prompt}
+            </View>
+          ) : null}
+
+          {step === 'vehicle' ? (
+            <View style={styles.section}>
+              <AppText variant="h3">Choose your vehicle</AppText>
+              {!ready ? (
+                <AppText variant="caption" color="textMuted">
+                  Loading…
+                </AppText>
+              ) : vehicles.length === 0 ? (
+                <Surface elevated padded style={styles.emptyVehicle}>
+                  <AppText variant="bodyMedium">
+                    You don't have a vehicle yet.
+                  </AppText>
+                  <PrimaryButton
+                    label="+ Add vehicle"
+                    onPress={() => router.push('/vehicle/add')}
+                  />
+                </Surface>
+              ) : (
+                <View style={styles.vehicleList}>
+                  {vehicles.map((vehicle, index) => (
+                    <VehicleCard
+                      key={vehicle.id}
+                      vehicle={vehicle}
+                      index={index}
+                      compact
+                      selected={selectedVehicleId === vehicle.id}
+                      onPress={() => setSelectedVehicleId(vehicle.id)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
+
+          {step === 'location' ? (
+            <View style={styles.section}>
+              <AppText variant="h3">Confirm location</AppText>
+              <LocationCard cityLabel={MOCK_LOCATION.label} />
+            </View>
+          ) : null}
+
+          {step === 'confirm' && selectedVehicle ? (
+            <View style={styles.section}>
+              <AppText variant="h3">Order summary</AppText>
+              <RequestSummary
+                headline={problemLabel}
+                vehicleLabel={vehicleTitle(selectedVehicle)}
+                vehicleMeta={String(selectedVehicle.year)}
+                locationLabel={MOCK_LOCATION.shortLabel}
+                pricing={pricing}
               />
-            ) : null}
-            {question.mode === 'location_focus' ? (
-              <AppText variant="body" color="textSecondary">
-                აირჩიე მდებარეობა ქვემოთ. რეალური GPS შემდეგ ეტაპზე დაემატება.
-              </AppText>
-            ) : null}
-          </View>
-
-          <LocationCard cityLabel={MOCK_LOCATION_LABEL} />
-
-          {selectedVehicle ? (
-            <RequestSummary
-              vehicleLabel={vehicleTitle(selectedVehicle)}
-              vehicleMeta={vehicleSubtitle(selectedVehicle)}
-              serviceLabel={service.title}
-              problemLabel={problemLabel}
-              locationLabel={MOCK_LOCATION_LABEL}
-              estimatedPriceLabel={estimatedPrice}
-            />
+            </View>
           ) : null}
 
           {formError ? (
@@ -217,22 +274,48 @@ export default function RequestServiceScreen() {
               {formError}
             </AppText>
           ) : null}
-
-          <PrimaryButton
-            label="დახმარების გამოძახება"
-            onPress={() => {
-              void onSubmit();
-            }}
-            disabled={submitting || !canSubmit}
-          />
         </ScrollView>
-      </KeyboardAvoidingView>
+
+        <View style={styles.footer}>
+          {step !== 'need' ? (
+            <AnimatedPressable
+              accessibilityLabel="Back"
+              onPress={() => {
+                goBack();
+              }}
+              style={styles.backLink}
+            >
+              <AppText variant="bodyMedium" color="textSecondary">
+                Back
+              </AppText>
+            </AnimatedPressable>
+          ) : null}
+          {step !== 'confirm' ? (
+            <PrimaryButton
+              label="Continue"
+              onPress={goNext}
+              disabled={
+                (step === 'need' && !optionId) ||
+                (step === 'vehicle' &&
+                  (!selectedVehicleId || vehicles.length === 0))
+              }
+            />
+          ) : (
+            <PrimaryButton
+              label={pricing.ctaLabel}
+              onPress={() => {
+                void onSubmit();
+              }}
+              disabled={submitting}
+            />
+          )}
+        </View>
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -240,10 +323,29 @@ const styles = StyleSheet.create({
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  progress: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  progressDot: {
+    flex: 1,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+  },
+  progressDotActive: {
+    backgroundColor: colors.primary,
   },
   content: {
     padding: spacing.xl,
     gap: spacing.xl,
+    paddingBottom: spacing['2xl'],
   },
   hero: {
     flexDirection: 'row',
@@ -257,24 +359,27 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
   },
+  options: {
+    gap: spacing.sm,
+  },
   vehicleList: {
     gap: spacing.sm,
   },
   emptyVehicle: {
     gap: spacing.md,
   },
-  options: {
+  footer: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.sm,
     gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
-  notes: {
-    minHeight: 120,
-    ...typography.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+  backLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
   },
 });

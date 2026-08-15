@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { formatDisplayPhone } from '@/components/auth/PhoneInput';
-import { copy } from '@/content/copy';
+import { getCopy } from '@/content/copy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -24,7 +24,8 @@ function formatCountdown(total: number): string {
 export default function VerifyOtpScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { mockSignIn } = useSession();
+  const { session, mockSignIn } = useSession();
+  const copy = getCopy(session.language);
   const params = useLocalSearchParams<{ phone?: string }>();
   const phone = typeof params.phone === 'string' ? params.phone : '';
 

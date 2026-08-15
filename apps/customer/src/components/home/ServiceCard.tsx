@@ -7,6 +7,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Surface } from '@/components/ui/Surface';
 import { SERVICE_ICON_KIND } from '@/constants/serviceIcons';
 import type { ServiceCatalogItem } from '@/constants/services';
+import { BATTERY_SERVICE_ID } from '@/features/services/battery/types';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -25,6 +26,10 @@ export function ServiceCard({ service }: ServiceCardProps) {
       accessibilityLabel={`${service.title}. ${service.description}`}
       accessibilityRole="button"
       onPress={() => {
+        if (service.id === BATTERY_SERVICE_ID) {
+          router.push('/battery/index');
+          return;
+        }
         router.push({
           pathname: '/request/[service]',
           params: { service: service.id },
