@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { FormField } from '@/features/vehicles/components/FormField';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { StarRow } from '@/features/services/battery/components/StarRow';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -28,21 +29,13 @@ export default function BatteryRatingScreen() {
       <View
         style={[
           styles.screen,
-          {
-            paddingTop: insets.top + spacing['2xl'],
-            paddingBottom: insets.bottom + spacing.xl,
-          },
+          { paddingTop: insets.top + spacing['2xl'] },
         ]}
       >
         <FadeIn>
-          <View style={styles.success}>
-            <AppText variant="h2" style={styles.center}>
-              Thank you!
-            </AppText>
-            <AppText variant="body" color="textSecondary" style={styles.center}>
-              Your feedback helps us improve AutoHelp.
-            </AppText>
-            <View style={styles.footer}>
+          <BatteryScreenScaffold
+            contentContainerStyle={styles.successContent}
+            footer={
               <PrimaryButton
                 label="Back to Home"
                 onPress={() => {
@@ -50,25 +43,48 @@ export default function BatteryRatingScreen() {
                   router.replace('/(app)/(tabs)');
                 }}
               />
+            }
+          >
+            <View style={styles.successCopy}>
+              <AppText variant="h2" style={styles.center}>
+                Thank you!
+              </AppText>
+              <AppText variant="body" color="textSecondary" style={styles.center}>
+                Your feedback helps us improve AutoHelp.
+              </AppText>
             </View>
-          </View>
+          </BatteryScreenScaffold>
         </FadeIn>
       </View>
     );
   }
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + spacing['2xl'],
-            paddingBottom: insets.bottom + spacing.xl,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: insets.top + spacing['2xl'] },
+      ]}
+    >
+      <BatteryScreenScaffold
+        keyboard
+        contentContainerStyle={styles.content}
+        footer={
+          <PrimaryButton
+            label="Submit rating"
+            disabled={overall === 0}
+            onPress={() => {
+              setRating({
+                overall,
+                speed,
+                price,
+                quality,
+                comment,
+              });
+              setSubmitted(true);
+            }}
+          />
+        }
       >
         <AppText variant="h2">How was your experience?</AppText>
         <StarRow value={overall} onChange={setOverall} />
@@ -101,22 +117,7 @@ export default function BatteryRatingScreen() {
           textAlignVertical="top"
           style={styles.comment}
         />
-
-        <PrimaryButton
-          label="Submit rating"
-          disabled={overall === 0}
-          onPress={() => {
-            setRating({
-              overall,
-              speed,
-              price,
-              quality,
-              comment,
-            });
-            setSubmitted(true);
-          }}
-        />
-      </ScrollView>
+      </BatteryScreenScaffold>
     </View>
   );
 }
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
+    flexGrow: 0,
   },
   aspect: {
     gap: spacing.xs,
@@ -137,15 +139,14 @@ const styles = StyleSheet.create({
   comment: {
     minHeight: 96,
   },
-  success: {
-    flex: 1,
-    gap: spacing.md,
+  successContent: {
+    paddingHorizontal: spacing.xl,
     justifyContent: 'center',
+  },
+  successCopy: {
+    gap: spacing.md,
   },
   center: {
     textAlign: 'center',
-  },
-  footer: {
-    marginTop: 'auto',
   },
 });

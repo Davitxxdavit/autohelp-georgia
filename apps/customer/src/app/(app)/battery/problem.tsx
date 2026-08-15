@@ -1,11 +1,11 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { FormField } from '@/features/vehicles/components/FormField';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { ProblemCard } from '@/features/services/battery/components/ProblemCard';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -14,7 +14,6 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BatteryProblemScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { draft, setProblem, setDetails } = useBatteryFlow();
 
@@ -25,13 +24,19 @@ export default function BatteryProblemScreen() {
         subtitle="Choose the closest match"
       />
       <FadeIn>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.xl },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <BatteryScreenScaffold
+          keyboard
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Continue"
+              disabled={!draft.problemId}
+              onPress={() => {
+                if (!draft.problemId) return;
+                router.push('/battery/location');
+              }}
+            />
+          }
         >
           <View style={styles.grid}>
             {BATTERY_PROBLEMS.map((problem) => (
@@ -52,15 +57,7 @@ export default function BatteryProblemScreen() {
             textAlignVertical="top"
             style={styles.notes}
           />
-          <PrimaryButton
-            label="Continue"
-            disabled={!draft.problemId}
-            onPress={() => {
-              if (!draft.problemId) return;
-              router.push('/battery/location');
-            }}
-          />
-        </ScrollView>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -74,6 +71,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
+    flexGrow: 0,
   },
   grid: {
     flexDirection: 'row',

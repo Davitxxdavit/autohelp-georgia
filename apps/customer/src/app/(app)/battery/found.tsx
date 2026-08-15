@@ -6,6 +6,7 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { Surface } from '@/components/ui/Surface';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { MechanicCard } from '@/features/services/battery/components/MechanicCard';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -24,14 +25,46 @@ export default function BatteryFoundScreen() {
     <View
       style={[
         styles.screen,
-        {
-          paddingTop: insets.top + spacing['2xl'],
-          paddingBottom: insets.bottom + spacing.xl,
-        },
+        { paddingTop: insets.top + spacing['2xl'] },
       ]}
     >
       <FadeIn>
-        <View style={styles.inner}>
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <>
+              <PrimaryButton
+                label="Track specialist"
+                onPress={() => router.replace('/battery/tracking')}
+              />
+              <AnimatedPressable
+                accessibilityLabel="Cancel request"
+                onPress={() => {
+                  Alert.alert(
+                    'Cancel request?',
+                    'This mock request will be closed.',
+                    [
+                      { text: 'Keep', style: 'cancel' },
+                      {
+                        text: 'Cancel request',
+                        style: 'destructive',
+                        onPress: () => {
+                          reset();
+                          router.replace('/(app)/(tabs)');
+                        },
+                      },
+                    ],
+                  );
+                }}
+                style={styles.cancel}
+              >
+                <AppText variant="button" color="danger">
+                  Cancel request
+                </AppText>
+              </AnimatedPressable>
+            </>
+          }
+        >
           <AppText variant="label" color="primary">
             Mechanic found
           </AppText>
@@ -55,38 +88,7 @@ export default function BatteryFoundScreen() {
                 : '—'}
             </AppText>
           </Surface>
-          <View style={styles.actions}>
-            <PrimaryButton
-              label="Track specialist"
-              onPress={() => router.replace('/battery/tracking')}
-            />
-            <AnimatedPressable
-              accessibilityLabel="Cancel request"
-              onPress={() => {
-                Alert.alert(
-                  'Cancel request?',
-                  'This mock request will be closed.',
-                  [
-                    { text: 'Keep', style: 'cancel' },
-                    {
-                      text: 'Cancel request',
-                      style: 'destructive',
-                      onPress: () => {
-                        reset();
-                        router.replace('/(app)/(tabs)');
-                      },
-                    },
-                  ],
-                );
-              }}
-              style={styles.cancel}
-            >
-              <AppText variant="button" color="danger">
-                Cancel request
-              </AppText>
-            </AnimatedPressable>
-          </View>
-        </View>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -96,21 +98,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.xl,
   },
-  inner: {
-    flex: 1,
+  content: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    flexGrow: 0,
   },
   meta: {
     gap: spacing.xxs,
   },
   mt: {
     marginTop: spacing.sm,
-  },
-  actions: {
-    marginTop: 'auto',
-    gap: spacing.md,
   },
   cancel: {
     alignItems: 'center',

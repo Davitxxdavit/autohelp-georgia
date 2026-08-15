@@ -6,12 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/AppText';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { SearchingVisual } from '@/features/services/battery/components/SearchingVisual';
+import { useBatteryBottomPad } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { SEARCH_DELAY_MS } from '@/features/services/battery/mock';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BatterySearchingScreen() {
   const insets = useSafeAreaInsets();
+  const bottomPad = useBatteryBottomPad();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export default function BatterySearchingScreen() {
         styles.screen,
         {
           paddingTop: insets.top + spacing['2xl'],
-          paddingBottom: insets.bottom + spacing.xl,
+          paddingBottom: bottomPad,
         },
       ]}
     >

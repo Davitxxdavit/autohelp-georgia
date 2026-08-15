@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { BatteryHero } from '@/features/services/battery/components/BatteryHero';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { ServiceOptionCard } from '@/features/services/battery/components/ServiceOptionCard';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -16,7 +16,6 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BatteryServiceScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { draft, setOption } = useBatteryFlow();
   const [selected, setSelected] = useState<BatteryOptionId | null>(
@@ -30,12 +29,18 @@ export default function BatteryServiceScreen() {
         subtitle="Roadside help for a dead or failing battery"
       />
       <FadeIn>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.xl },
-          ]}
-          showsVerticalScrollIndicator={false}
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Continue"
+              disabled={!selected}
+              onPress={() => {
+                if (!selected) return;
+                router.push('/battery/vehicle');
+              }}
+            />
+          }
         >
           <BatteryHero />
           <AppText variant="label" color="textMuted">
@@ -58,15 +63,7 @@ export default function BatteryServiceScreen() {
             Prices shown are mock estimates for this build. Final pricing will
             come from the service catalog later.
           </AppText>
-          <PrimaryButton
-            label="Continue"
-            disabled={!selected}
-            onPress={() => {
-              if (!selected) return;
-              router.push('/battery/vehicle');
-            }}
-          />
-        </ScrollView>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );

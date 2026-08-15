@@ -1,11 +1,11 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { BatteryVehiclesEmpty } from '@/features/services/battery/components/BatteryVehiclesEmpty';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -16,7 +16,6 @@ import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
 export default function BatteryVehicleScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { vehicles, ready } = useVehicles();
   const { draft, setVehicle } = useBatteryFlow();
@@ -35,21 +34,22 @@ export default function BatteryVehicleScreen() {
             Loading vehicles…
           </AppText>
         ) : vehicles.length === 0 ? (
-          <ScrollView
-            contentContainerStyle={[
-              styles.empty,
-              { paddingBottom: insets.bottom + spacing.xl },
-            ]}
-          >
+          <BatteryScreenScaffold contentContainerStyle={styles.empty}>
             <BatteryVehiclesEmpty onAdd={() => router.push('/vehicle/add')} />
-          </ScrollView>
+          </BatteryScreenScaffold>
         ) : (
-          <ScrollView
-            contentContainerStyle={[
-              styles.content,
-              { paddingBottom: insets.bottom + spacing.xl },
-            ]}
-            showsVerticalScrollIndicator={false}
+          <BatteryScreenScaffold
+            contentContainerStyle={styles.content}
+            footer={
+              <PrimaryButton
+                label="Select this vehicle"
+                disabled={!selectedId}
+                onPress={() => {
+                  if (!selectedId) return;
+                  router.push('/battery/problem');
+                }}
+              />
+            }
           >
             {vehicles.map((vehicle, index) => (
               <VehicleCard
@@ -70,15 +70,7 @@ export default function BatteryVehicleScreen() {
                 + Add vehicle
               </AppText>
             </AnimatedPressable>
-            <PrimaryButton
-              label="Select this vehicle"
-              disabled={!selectedId}
-              onPress={() => {
-                if (!selectedId) return;
-                router.push('/battery/problem');
-              }}
-            />
-          </ScrollView>
+          </BatteryScreenScaffold>
         )}
       </FadeIn>
     </View>
@@ -94,12 +86,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   empty: {
-    flexGrow: 1,
     paddingHorizontal: spacing.xl,
   },
   content: {
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    flexGrow: 0,
   },
   add: {
     alignSelf: 'flex-start',

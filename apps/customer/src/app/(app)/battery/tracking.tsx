@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { MechanicCard } from '@/features/services/battery/components/MechanicCard';
 import { TrackingMap } from '@/features/services/battery/components/TrackingMap';
@@ -22,14 +23,22 @@ export default function BatteryTrackingScreen() {
     <View
       style={[
         styles.screen,
-        {
-          paddingTop: insets.top + spacing.lg,
-          paddingBottom: insets.bottom + spacing.xl,
-        },
+        { paddingTop: insets.top + spacing.lg },
       ]}
     >
       <FadeIn>
-        <View style={styles.inner}>
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Service completed"
+              onPress={() => {
+                markCompleted();
+                router.replace('/battery/completed');
+              }}
+            />
+          }
+        >
           <AppText variant="label" color="primary">
             Live tracking
           </AppText>
@@ -42,14 +51,7 @@ export default function BatteryTrackingScreen() {
             mechanic={mechanic}
             etaLabel={`Arriving in ${mechanic.etaMinutes} min`}
           />
-          <PrimaryButton
-            label="Service completed"
-            onPress={() => {
-              markCompleted();
-              router.replace('/battery/completed');
-            }}
-          />
-        </View>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -59,10 +61,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.xl,
   },
-  inner: {
-    flex: 1,
+  content: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    flexGrow: 0,
   },
 });

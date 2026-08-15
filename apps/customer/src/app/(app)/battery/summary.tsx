@@ -1,12 +1,12 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { Divider } from '@/components/ui/Divider';
 import { Surface } from '@/components/ui/Surface';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
 import {
@@ -30,7 +30,6 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function BatterySummaryScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { draft, markRequested } = useBatteryFlow();
   const { getById } = useVehicles();
@@ -49,12 +48,19 @@ export default function BatterySummaryScreen() {
         subtitle="Review before we look for a specialist"
       />
       <FadeIn>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.xl },
-          ]}
-          showsVerticalScrollIndicator={false}
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Request assistance"
+              disabled={!canSubmit}
+              onPress={() => {
+                if (!canSubmit) return;
+                markRequested();
+                router.push('/battery/searching');
+              }}
+            />
+          }
         >
           <Surface elevated padded style={styles.card}>
             <AppText variant="label" color="primary">
@@ -92,16 +98,7 @@ export default function BatterySummaryScreen() {
           <AppText variant="caption" color="textMuted">
             Estimated price is mock catalog data, not a final charge.
           </AppText>
-          <PrimaryButton
-            label="Request assistance"
-            disabled={!canSubmit}
-            onPress={() => {
-              if (!canSubmit) return;
-              markRequested();
-              router.push('/battery/searching');
-            }}
-          />
-        </ScrollView>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -115,6 +112,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
+    flexGrow: 0,
   },
   card: {
     gap: spacing.sm,

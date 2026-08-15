@@ -6,6 +6,7 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { Divider } from '@/components/ui/Divider';
 import { Surface } from '@/components/ui/Surface';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
 import { getBatteryOption } from '@/features/services/battery/mock';
@@ -31,14 +32,19 @@ export default function BatteryCompletedScreen() {
     <View
       style={[
         styles.screen,
-        {
-          paddingTop: insets.top + spacing['2xl'],
-          paddingBottom: insets.bottom + spacing.xl,
-        },
+        { paddingTop: insets.top + spacing['2xl'] },
       ]}
     >
       <FadeIn>
-        <View style={styles.inner}>
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Rate specialist"
+              onPress={() => router.push('/battery/rating')}
+            />
+          }
+        >
           <AppText variant="label" color="success">
             Service completed
           </AppText>
@@ -68,13 +74,7 @@ export default function BatteryCompletedScreen() {
               {formatWhen(draft.completedAt)}
             </AppText>
           </Surface>
-          <View style={styles.footer}>
-            <PrimaryButton
-              label="Rate specialist"
-              onPress={() => router.push('/battery/rating')}
-            />
-          </View>
-        </View>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -84,17 +84,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.xl,
   },
-  inner: {
-    flex: 1,
+  content: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.sm,
+    flexGrow: 0,
   },
   card: {
     marginTop: spacing.md,
     gap: spacing.xs,
-  },
-  footer: {
-    marginTop: 'auto',
   },
 });

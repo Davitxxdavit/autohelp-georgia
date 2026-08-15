@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
+import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { MockMap } from '@/features/services/battery/components/MockMap';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
@@ -16,7 +16,6 @@ import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
 export default function BatteryLocationScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { draft, setLocation } = useBatteryFlow();
   const location = draft.location;
@@ -32,12 +31,14 @@ export default function BatteryLocationScreen() {
         subtitle="We’ll send a specialist to this spot"
       />
       <FadeIn>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.xl },
-          ]}
-          showsVerticalScrollIndicator={false}
+        <BatteryScreenScaffold
+          contentContainerStyle={styles.content}
+          footer={
+            <PrimaryButton
+              label="Confirm location"
+              onPress={() => router.push('/battery/summary')}
+            />
+          }
         >
           <MockMap location={location} />
           <View style={styles.place}>
@@ -60,11 +61,7 @@ export default function BatteryLocationScreen() {
               Change location
             </AppText>
           </AnimatedPressable>
-          <PrimaryButton
-            label="Confirm location"
-            onPress={() => router.push('/battery/summary')}
-          />
-        </ScrollView>
+        </BatteryScreenScaffold>
       </FadeIn>
     </View>
   );
@@ -78,6 +75,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
+    flexGrow: 0,
   },
   place: {
     gap: spacing.xs,
