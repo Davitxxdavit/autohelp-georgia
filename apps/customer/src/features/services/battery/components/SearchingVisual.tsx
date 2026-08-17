@@ -1,21 +1,30 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 
 import { CarSilhouette } from '@/components/automotive/CarSilhouette';
+import { RoadLines } from '@/components/automotive/RoadLines';
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
+import { GradientSurface } from '@/components/ui/GradientSurface';
+import { runSubtlePulse } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
+
+const RING_MS = timing.slow * 5;
+const RING_STAGGER = timing.slow;
+const BREATH_MS = timing.slow * 3;
+const ROAD_MS = timing.slow * 8;
 
 function PulseRing({
   delay,
@@ -24,24 +33,28 @@ function PulseRing({
   delay: number;
   reducedMotion: boolean;
 }) {
-  const scale = useSharedValue(0.55);
-  const opacity = useSharedValue(0.5);
+  const scale = useSharedValue(0.68);
+  const opacity = useSharedValue(0.42);
 
   useEffect(() => {
     if (reducedMotion) {
       scale.value = 1;
-      opacity.value = 0.2;
+      opacity.value = 0.18;
       return;
     }
     const ease = Easing.out(Easing.quad);
     scale.value = withDelay(
       delay,
-      withRepeat(withTiming(1.55, { duration: 1800, easing: ease }), -1, false),
+      withRepeat(withTiming(1.42, { duration: RING_MS, easing: ease }), -1, false),
     );
     opacity.value = withDelay(
       delay,
-      withRepeat(withTiming(0, { duration: 1800, easing: ease }), -1, false),
+      withRepeat(withTiming(0, { duration: RING_MS, easing: ease }), -1, false),
     );
+    return () => {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
   }, [delay, opacity, reducedMotion, scale]);
 
   const style = useAnimatedStyle(() => ({
@@ -54,59 +67,85 @@ function PulseRing({
 
 export function SearchingVisual() {
   const reducedMotion = !!useReducedMotion();
-  const carY = useSharedValue(0);
-  const spin = useSharedValue(0);
+  const glow = useSharedValue(reducedMotion ? 0.5 : 0.35);
+  const coreScale = useSharedValue(1);
+  const sceneY = useSharedValue(0);
+  const roadX = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
-    carY.value = withRepeat(
-      withTiming(-8, {
-        duration: timing.slow * 2,
-        easing: Easing.inOut(Easing.sin),
-      }),
-      -1,
-      true,
-    );
-    spin.value = withRepeat(
-      withTiming(360, {
-        duration: 4200,
-        easing: Easing.linear,
-      }),
+    if (reducedMotion) {
+      glow.value = 0.5;
+      coreScale.value = 1;
+      sceneY.value = 0;
+      roadX.value = 0;
+      return;
+    }
+
+    const ease = Easing.inOut(Easing.sin);
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(0.72, { duration: BREATH_MS, easing: ease }),
+        withTiming(0.32, { duration: BREATH_MS, easing: ease }),
+      ),
       -1,
       false,
     );
-  }, [carY, reducedMotion, spin]);
+    runSubtlePulse(coreScale, false);
+    sceneY.value = withRepeat(
+      withTiming(-4, { duration: BREATH_MS, easing: ease }),
+      -1,
+      true,
+    );
+    roadX.value = withRepeat(
+      withTiming(10, { duration: ROAD_MS, easing: ease }),
+      -1,
+      true,
+    );
 
-  const carStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: carY.value }],
+    return () => {
+      cancelAnimation(glow);
+      cancelAnimation(coreScale);
+      cancelAnimation(sceneY);
+      cancelAnimation(roadX);
+    };
+  }, [coreScale, glow, reducedMotion, roadX, sceneY]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glow.value,
   }));
 
-  const spinStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
+  const coreStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: coreScale.value }],
+  }));
+
+  const sceneStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sceneY.value }],
+  }));
+
+  const roadStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: roadX.value }],
   }));
 
   return (
-    <View style={styles.root}>
-      <View style={styles.grid} accessibilityElementsHidden>
-        {Array.from({ length: 5 }).map((_, row) => (
-          <View key={row} style={styles.gridRow}>
-            {Array.from({ length: 5 }).map((__, col) => (
-              <View key={col} style={styles.cell} />
-            ))}
-          </View>
-        ))}
-      </View>
+    <GradientSurface
+      colors={[colors.surfaceElevated, colors.background, colors.primarySoft]}
+      radiusToken="xl"
+      style={styles.root}
+    >
+      <Animated.View style={[styles.glow, glowStyle]} />
       <PulseRing delay={0} reducedMotion={reducedMotion} />
-      <PulseRing delay={420} reducedMotion={reducedMotion} />
-      <PulseRing delay={840} reducedMotion={reducedMotion} />
-      <Animated.View style={[styles.spinner, spinStyle]} />
-      <View style={styles.core}>
+      <PulseRing delay={RING_STAGGER} reducedMotion={reducedMotion} />
+      <PulseRing delay={RING_STAGGER * 2} reducedMotion={reducedMotion} />
+      <Animated.View style={[styles.core, coreStyle]}>
         <ServiceIcon kind="mechanic" size={28} />
-      </View>
-      <Animated.View style={[styles.car, carStyle]}>
-        <CarSilhouette width={180} height={56} color={colors.textSecondary} />
       </Animated.View>
-    </View>
+      <Animated.View style={[styles.scene, sceneStyle]}>
+        <Animated.View style={roadStyle}>
+          <RoadLines width={220} height={16} color={colors.border} />
+        </Animated.View>
+        <CarSilhouette width={188} height={58} color={colors.textSecondary} />
+      </Animated.View>
+    </GradientSurface>
   );
 }
 
@@ -117,40 +156,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  grid: {
-    ...StyleSheet.absoluteFill,
-    padding: spacing.lg,
-    gap: spacing.md,
-    opacity: 0.35,
-  },
-  gridRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  cell: {
-    flex: 1,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+  glow: {
+    position: 'absolute',
+    width: 168,
+    height: 168,
+    borderRadius: 84,
+    backgroundColor: colors.primarySoft,
   },
   ring: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 176,
+    height: 176,
+    borderRadius: 88,
     borderWidth: 1.5,
     borderColor: colors.primary,
-  },
-  spinner: {
-    position: 'absolute',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 1.5,
-    borderColor: colors.primaryMuted,
-    borderTopColor: colors.primary,
-    zIndex: 1,
   },
   core: {
     width: 64,
@@ -163,8 +182,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  car: {
+  scene: {
     position: 'absolute',
     bottom: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
 });
