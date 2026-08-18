@@ -1,10 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+/** Icon + label row, matching the previous inner height (excludes the system inset). */
+const TAB_BAR_CONTENT_HEIGHT = Platform.OS === 'ios' ? 64 : 56;
 
 type TabIconProps = {
   name: keyof typeof Ionicons.glyphMap;
@@ -17,6 +21,9 @@ function TabIcon({ name, color, size }: TabIconProps) {
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
+
   return (
     <Tabs
       screenOptions={{
@@ -27,9 +34,9 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 68,
+          height: TAB_BAR_CONTENT_HEIGHT + bottomInset,
           paddingTop: spacing.xs,
-          paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.sm,
+          paddingBottom: bottomInset,
         },
         tabBarLabelStyle: {
           ...typography.caption,
