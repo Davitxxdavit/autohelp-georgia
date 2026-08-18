@@ -1,27 +1,21 @@
-import { type ReactNode, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-} from 'react-native-reanimated';
 
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { Divider } from '@/components/ui/Divider';
-import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
-import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
+import { Reveal } from '@/features/services/flow/Reveal';
+import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
+import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
 import {
-  formatEstimatedPrice,
-  getBatteryOption,
-  MOCK_MECHANIC,
-} from '@/features/services/battery/mock';
+  getKeysProblem,
+  MOCK_SPECIALIST,
+  PRICE_CONFIRM_LATER,
+} from '@/features/services/keys/mock';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
-import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -32,37 +26,14 @@ function formatWhen(iso: string | null): string {
   return new Date(iso).toLocaleString();
 }
 
-function Reveal({
-  delayMs,
-  children,
-}: {
-  delayMs: number;
-  children: ReactNode;
-}) {
-  const reducedMotion = !!useReducedMotion();
-  const opacity = useSharedValue(reducedMotion ? 1 : 0);
-  const translateY = useSharedValue(reducedMotion ? 0 : 16);
-
-  useEffect(() => {
-    runPreset('fadeInUp', { opacity, translateY }, { reducedMotion, delayMs });
-  }, [delayMs, opacity, reducedMotion, translateY]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  return <Animated.View style={style}>{children}</Animated.View>;
-}
-
-export default function BatteryCompletedScreen() {
+export default function KeysCompletedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft } = useBatteryFlow();
+  const { draft } = useKeysFlow();
   const { getById } = useVehicles();
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
-  const option = draft.optionId ? getBatteryOption(draft.optionId) : undefined;
-  const mechanic = MOCK_MECHANIC;
+  const problem = draft.problemId ? getKeysProblem(draft.problemId) : undefined;
+  const specialist = MOCK_SPECIALIST;
 
   return (
     <View
@@ -71,29 +42,29 @@ export default function BatteryCompletedScreen() {
         { paddingTop: insets.top + spacing['2xl'] },
       ]}
     >
-      <BatteryScreenScaffold
+      <ServiceScreenScaffold
         contentContainerStyle={styles.content}
         footer={
           <PrimaryButton
             label="Rate specialist"
-            onPress={() => router.push('/battery/rating')}
+            onPress={() => router.push('/keys/rating' as Href)}
           />
         }
       >
         <Reveal delayMs={0}>
           <View style={styles.hero}>
             <View style={styles.mark}>
-              <ServiceIcon kind="battery" size={28} />
+              <ServiceIcon kind="locksmith" size={28} />
             </View>
             <AppText variant="label" color="success" style={styles.center}>
               Service completed
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              Battery Assistance
+              Auto Key
             </AppText>
-            {option ? (
+            {problem ? (
               <AppText variant="body" color="textSecondary" style={styles.center}>
-                {option.title}
+                {problem.title}
               </AppText>
             ) : null}
           </View>
@@ -118,18 +89,16 @@ export default function BatteryCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Specialist
               </AppText>
-              <AppText variant="bodyMedium">{mechanic.name}</AppText>
+              <AppText variant="bodyMedium">{specialist.name}</AppText>
             </View>
 
             <View style={styles.block}>
               <AppText variant="caption" color="textMuted">
-                Estimated price
+                Price
               </AppText>
-              <AppText variant="bodyMedium">
-                {option ? formatEstimatedPrice(option) : '—'}
-              </AppText>
+              <AppText variant="bodyMedium">{PRICE_CONFIRM_LATER}</AppText>
               <AppText variant="caption" color="textMuted">
-                Price is an estimate
+                Confirmed by the specialist
               </AppText>
             </View>
 
@@ -143,7 +112,7 @@ export default function BatteryCompletedScreen() {
             </View>
           </View>
         </Reveal>
-      </BatteryScreenScaffold>
+      </ServiceScreenScaffold>
     </View>
   );
 }

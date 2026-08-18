@@ -1,49 +1,21 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-} from 'react-native-reanimated';
 
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { FormField } from '@/features/vehicles/components/FormField';
-import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
-import { StarRow } from '@/features/services/battery/components/StarRow';
-import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { MOCK_MECHANIC } from '@/features/services/battery/mock';
-import { runPreset } from '@/animations/transitions';
+import { Reveal } from '@/features/services/flow/Reveal';
+import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
+import { StarRow } from '@/features/services/flow/StarRow';
+import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
+import { MOCK_SPECIALIST } from '@/features/services/keys/mock';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
-
-function Reveal({
-  delayMs,
-  children,
-}: {
-  delayMs: number;
-  children: ReactNode;
-}) {
-  const reducedMotion = !!useReducedMotion();
-  const opacity = useSharedValue(reducedMotion ? 1 : 0);
-  const translateY = useSharedValue(reducedMotion ? 0 : 16);
-
-  useEffect(() => {
-    runPreset('fadeInUp', { opacity, translateY }, { reducedMotion, delayMs });
-  }, [delayMs, opacity, reducedMotion, translateY]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  return <Animated.View style={style}>{children}</Animated.View>;
-}
 
 function AspectRow({
   label,
@@ -64,17 +36,17 @@ function AspectRow({
   );
 }
 
-export default function BatteryRatingScreen() {
+export default function KeysRatingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setRating, reset } = useBatteryFlow();
+  const { setRating, reset } = useKeysFlow();
   const [overall, setOverall] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [price, setPrice] = useState(0);
   const [quality, setQuality] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const mechanic = MOCK_MECHANIC;
+  const specialist = MOCK_SPECIALIST;
 
   if (submitted) {
     return (
@@ -84,7 +56,7 @@ export default function BatteryRatingScreen() {
           { paddingTop: insets.top + spacing['2xl'] },
         ]}
       >
-        <BatteryScreenScaffold
+        <ServiceScreenScaffold
           contentContainerStyle={styles.successContent}
           footer={
             <PrimaryButton
@@ -99,7 +71,7 @@ export default function BatteryRatingScreen() {
           <Reveal delayMs={0}>
             <View style={styles.successCopy}>
               <View style={styles.mark}>
-                <ServiceIcon kind="mechanic" size={28} />
+                <ServiceIcon kind="locksmith" size={28} />
               </View>
               <AppText variant="label" color="success" style={styles.center}>
                 Feedback received
@@ -112,7 +84,7 @@ export default function BatteryRatingScreen() {
               </AppText>
             </View>
           </Reveal>
-        </BatteryScreenScaffold>
+        </ServiceScreenScaffold>
       </View>
     );
   }
@@ -124,7 +96,7 @@ export default function BatteryRatingScreen() {
         { paddingTop: insets.top + spacing['2xl'] },
       ]}
     >
-      <BatteryScreenScaffold
+      <ServiceScreenScaffold
         keyboard
         contentContainerStyle={styles.content}
         footer={
@@ -147,13 +119,13 @@ export default function BatteryRatingScreen() {
         <Reveal delayMs={0}>
           <View style={styles.hero}>
             <AppText variant="label" color="primary" style={styles.center}>
-              Battery Assistance
+              Auto Key
             </AppText>
             <AppText variant="h2" style={styles.center}>
               How was your experience?
             </AppText>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              How was {mechanic.name}?
+              How was {specialist.name}?
             </AppText>
           </View>
         </Reveal>
@@ -181,7 +153,7 @@ export default function BatteryRatingScreen() {
             style={styles.comment}
           />
         </Reveal>
-      </BatteryScreenScaffold>
+      </ServiceScreenScaffold>
     </View>
   );
 }

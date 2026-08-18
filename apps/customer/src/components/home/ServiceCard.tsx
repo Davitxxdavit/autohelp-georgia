@@ -1,5 +1,5 @@
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
@@ -8,6 +8,8 @@ import { Surface } from '@/components/ui/Surface';
 import { SERVICE_ICON_KIND } from '@/constants/serviceIcons';
 import type { ServiceCatalogItem } from '@/constants/services';
 import { BATTERY_SERVICE_ID } from '@/features/services/battery/types';
+import { DIAGNOSTICS_SERVICE_ID } from '@/features/services/diagnostics/types';
+import { KEYS_SERVICE_ID } from '@/features/services/keys/types';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -27,7 +29,15 @@ export function ServiceCard({ service }: ServiceCardProps) {
       accessibilityRole="button"
       onPress={() => {
         if (service.id === BATTERY_SERVICE_ID) {
-          router.push('/battery/index');
+          router.push('/battery' as Href);
+          return;
+        }
+        if (service.id === DIAGNOSTICS_SERVICE_ID) {
+          router.push('/diagnostics' as Href);
+          return;
+        }
+        if (service.id === KEYS_SERVICE_ID) {
+          router.push('/keys' as Href);
           return;
         }
         router.push({

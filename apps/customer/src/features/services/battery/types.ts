@@ -1,3 +1,9 @@
+import type {
+  MockLocation,
+  MockMoney,
+  ServiceRating,
+} from '@/features/services/flow/types';
+
 export const BATTERY_SERVICE_ID = 'battery' as const;
 
 export const BATTERY_OPTION_IDS = ['jump_start', 'replacement'] as const;
@@ -11,13 +17,13 @@ export const BATTERY_PROBLEM_IDS = [
 ] as const;
 export type BatteryProblemId = (typeof BATTERY_PROBLEM_IDS)[number];
 
-export type MockMoney = {
-  /** Numeric amount in GEL — mock catalog, not a billed price */
-  amountGel: number;
-  /** Display string, e.g. "30 ₾" */
-  display: string;
-  source: 'mock';
-};
+export type {
+  MockGeoPoint,
+  MockLocation,
+  MockMechanic,
+  MockMoney,
+  ServiceRating,
+} from '@/features/services/flow/types';
 
 export type BatteryOption = {
   id: BatteryOptionId;
@@ -33,38 +39,7 @@ export type BatteryProblem = {
   emoji: string;
 };
 
-export type MockGeoPoint = {
-  latitude: number;
-  longitude: number;
-};
-
-/** Replace with expo-location / reverse geocode later */
-export type MockLocation = {
-  id: string;
-  label: string;
-  city: string;
-  country: string;
-  point: MockGeoPoint;
-  source: 'mock';
-};
-
-export type MockMechanic = {
-  id: string;
-  name: string;
-  rating: number;
-  verified: boolean;
-  distanceKm: number;
-  etaMinutes: number;
-  source: 'mock';
-};
-
-export type BatteryRating = {
-  overall: number;
-  speed: number;
-  price: number;
-  quality: number;
-  comment: string;
-};
+export type BatteryRating = ServiceRating;
 
 export type BatteryDraft = {
   optionId: BatteryOptionId | null;

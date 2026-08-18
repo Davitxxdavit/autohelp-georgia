@@ -1,53 +1,25 @@
-import { type ReactNode, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-} from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
-import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
-import { MechanicCard } from '@/features/services/battery/components/MechanicCard';
-import { TrackingMap } from '@/features/services/battery/components/TrackingMap';
-import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { MOCK_MECHANIC, MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
-import { runPreset } from '@/animations/transitions';
+import { MechanicCard } from '@/features/services/flow/MechanicCard';
+import { Reveal } from '@/features/services/flow/Reveal';
+import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
+import { TrackingMap } from '@/features/services/flow/TrackingMap';
+import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
+import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
+import { MOCK_SPECIALIST } from '@/features/services/keys/mock';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-function Reveal({
-  delayMs,
-  children,
-}: {
-  delayMs: number;
-  children: ReactNode;
-}) {
-  const reducedMotion = !!useReducedMotion();
-  const opacity = useSharedValue(reducedMotion ? 1 : 0);
-  const translateY = useSharedValue(reducedMotion ? 0 : 16);
-
-  useEffect(() => {
-    runPreset('fadeInUp', { opacity, translateY }, { reducedMotion, delayMs });
-  }, [delayMs, opacity, reducedMotion, translateY]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  return <Animated.View style={style}>{children}</Animated.View>;
-}
-
-export default function BatteryTrackingScreen() {
+export default function KeysTrackingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, markCompleted } = useBatteryFlow();
-  const mechanic = MOCK_MECHANIC;
+  const { draft, markCompleted } = useKeysFlow();
+  const specialist = MOCK_SPECIALIST;
 
   return (
     <View
@@ -56,14 +28,14 @@ export default function BatteryTrackingScreen() {
         { paddingTop: insets.top + spacing.lg },
       ]}
     >
-      <BatteryScreenScaffold
+      <ServiceScreenScaffold
         contentContainerStyle={styles.content}
         footer={
           <PrimaryButton
             label="Service completed"
             onPress={() => {
               markCompleted();
-              router.replace('/battery/completed');
+              router.replace('/keys/completed' as Href);
             }}
           />
         }
@@ -73,14 +45,14 @@ export default function BatteryTrackingScreen() {
             <AppText variant="label" color="primary">
               Live tracking
             </AppText>
-            <AppText variant="h3">Specialist on the way</AppText>
+            <AppText variant="h3">Locksmith on the way</AppText>
           </View>
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
           <TrackingMap
             userPoint={draft.location.point}
-            mechanicPoint={MOCK_MECHANIC_POINT}
+            mechanicPoint={MOCK_SPECIALIST_POINT}
           />
         </Reveal>
 
@@ -90,18 +62,18 @@ export default function BatteryTrackingScreen() {
               Arriving in
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              ~{mechanic.etaMinutes} min
+              ~{specialist.etaMinutes} min
             </AppText>
           </View>
         </Reveal>
 
         <Reveal delayMs={timing.slow}>
           <MechanicCard
-            mechanic={mechanic}
-            footer={`${mechanic.distanceKm} km`}
+            mechanic={specialist}
+            footer={`${specialist.distanceKm} km`}
           />
         </Reveal>
-      </BatteryScreenScaffold>
+      </ServiceScreenScaffold>
     </View>
   );
 }

@@ -15,6 +15,8 @@ export default function AppLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="battery" />
+        <Stack.Screen name="diagnostics" />
+        <Stack.Screen name="keys" />
         <Stack.Screen
           name="request/[service]"
           options={{

@@ -1,6 +1,6 @@
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
 import { ActiveOrderEmpty } from '@/components/home/ActiveOrderEmpty';
 import { EmergencyHero } from '@/components/home/EmergencyHero';
@@ -33,7 +33,7 @@ export default function HomeScreen() {
 
       <EmergencyHero
         onPressCta={() => {
-          router.push('/battery/index');
+          router.push('/battery' as Href);
         }}
       />
 

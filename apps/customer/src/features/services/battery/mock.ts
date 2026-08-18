@@ -1,22 +1,12 @@
-import type {
-  BatteryOption,
-  BatteryProblem,
-  MockGeoPoint,
-  MockLocation,
-  MockMechanic,
-} from './types';
+import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
+import { formatEstimatedPrice as formatServicePrice } from '@/features/services/flow/pricing';
+import type { MockMechanic } from '@/features/services/flow/types';
 
-export const MOCK_BATUMI_LOCATION: MockLocation = {
-  id: 'loc_batumi_center',
-  label: 'Batumi, Georgia',
-  city: 'Batumi',
-  country: 'Georgia',
-  point: {
-    latitude: 41.6168,
-    longitude: 41.6367,
-  },
-  source: 'mock',
-};
+import type { BatteryOption, BatteryProblem } from './types';
+
+export { MOCK_BATUMI_LOCATION, SEARCH_DELAY_MS } from '@/features/services/flow/location';
+
+export const MOCK_MECHANIC_POINT = MOCK_SPECIALIST_POINT;
 
 export const BATTERY_OPTIONS: BatteryOption[] = [
   {
@@ -59,14 +49,6 @@ export const MOCK_MECHANIC: MockMechanic = {
   source: 'mock',
 };
 
-/** Offset from the customer pin — replace with live specialist coordinates. */
-export const MOCK_MECHANIC_POINT: MockGeoPoint = {
-  latitude: 41.6284,
-  longitude: 41.6452,
-};
-
-export const SEARCH_DELAY_MS = 2400;
-
 export function getBatteryOption(id: string): BatteryOption | undefined {
   return BATTERY_OPTIONS.find((item) => item.id === id);
 }
@@ -76,8 +58,5 @@ export function getBatteryProblem(id: string): BatteryProblem | undefined {
 }
 
 export function formatEstimatedPrice(option: BatteryOption): string {
-  if (option.estimatedNote) {
-    return `From ${option.estimatedFrom.display} ${option.estimatedNote}`;
-  }
-  return `From ${option.estimatedFrom.display}`;
+  return formatServicePrice(option);
 }
