@@ -4,6 +4,7 @@
 .cursor/
 .vscode/
 *.code-workspace
+.idea/
 
 # OS
 .DS_Store
@@ -47,3 +48,20 @@ expo-env.d.ts
 # Generated native (prebuild)
 **/ios/
 **/android/
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+*.sqlite3
+backend/staticfiles/
+backend/media/
