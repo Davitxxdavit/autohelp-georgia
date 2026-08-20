@@ -113,3 +113,6 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
             note="Request created",
         )
         return instance
+
+    def to_representation(self, instance):
+        return ServiceRequestSerializer(instance, context=self.context).data

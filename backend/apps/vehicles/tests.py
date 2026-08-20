@@ -136,7 +136,7 @@ class RequestApiTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         created = ServiceRequest.objects.get(id=response.data["id"])
         self.assertEqual(created.status, RequestStatus.REQUESTED)
         self.assertIsNone(created.assigned_mechanic_id)
@@ -156,7 +156,7 @@ class RequestApiTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         created = ServiceRequest.objects.get(id=response.data["id"])
         self.assertEqual(str(created.estimated_price_amount), "60.00")
 
@@ -173,7 +173,7 @@ class RequestApiTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         created = ServiceRequest.objects.get(id=response.data["id"])
         self.assertIsNone(created.estimated_price_amount)
 
