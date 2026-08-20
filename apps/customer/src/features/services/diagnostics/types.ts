@@ -41,4 +41,7 @@ export type DiagnosticsDraft = {
   requestedAt: string | null;
   completedAt: string | null;
   rating: DiagnosticsRating | null;
+  serviceRequestId: string | null;
+  backendEstimatedPriceAmount: string | null;
+  backendEstimatedPriceCurrency: string | null;
 };

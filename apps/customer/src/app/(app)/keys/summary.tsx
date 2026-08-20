@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
@@ -15,6 +16,9 @@ import {
 } from '@/features/services/keys/mock';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import { isApiError } from '@/lib/api/errors';
+import { resolveKeysProblemCode } from '@/lib/api/mapping';
+import { createRoadsideRequest } from '@/lib/api/requests';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -35,8 +39,43 @@ export default function KeysSummaryScreen() {
   const { getById } = useVehicles();
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
   const problem = draft.problemId ? getKeysProblem(draft.problemId) : undefined;
+  const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && problem);
+  const canSubmit = Boolean(vehicle && problem) && !submitting;
+
+  const onRequestAssistance = async () => {
+    if (!vehicle || !problem || !draft.problemId || submitting) return;
+    setSubmitting(true);
+    try {
+      const created = await createRoadsideRequest({
+        frontendServiceId: 'keys',
+        problemCode: resolveKeysProblemCode(draft.problemId),
+        vehicleId: vehicle.id,
+        latitude: draft.location.point.latitude,
+        longitude: draft.location.point.longitude,
+        address: draft.location.label,
+      });
+      markRequested({
+        id: created.id,
+        estimatedPriceAmount: created.estimated_price_amount,
+        estimatedPriceCurrency: created.estimated_price_currency,
+      });
+      router.push('/keys/searching' as Href);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[AutoHelp] Auto Key request create failed', error);
+        if (isApiError(error)) {
+          console.warn('[AutoHelp] status', error.status, 'body', error.body);
+        }
+      }
+      Alert.alert(
+        'Request failed',
+        'Couldn’t send your request. Check your connection and try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -49,12 +88,10 @@ export default function KeysSummaryScreen() {
           contentContainerStyle={styles.content}
           footer={
             <PrimaryButton
-              label="Request assistance"
+              label={submitting ? 'Sending…' : 'Request assistance'}
               disabled={!canSubmit}
               onPress={() => {
-                if (!canSubmit) return;
-                markRequested();
-                router.push('/keys/searching' as Href);
+                void onRequestAssistance();
               }}
             />
           }

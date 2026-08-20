@@ -52,6 +52,16 @@ export function resolveBatteryProblemCode(
   return BATTERY_PROBLEM_TO_BACKEND[problemId];
 }
 
+export function resolveDiagnosticsProblemCode(
+  problemId: DiagnosticsProblemId,
+): string {
+  return DIAGNOSTICS_PROBLEM_TO_BACKEND[problemId];
+}
+
+export function resolveKeysProblemCode(problemId: KeysProblemId): string {
+  return KEYS_PROBLEM_TO_BACKEND[problemId];
+}
+
 export async function resolveCatalogIds(args: {
   frontendServiceId: FrontendServiceId;
   problemCode: string;

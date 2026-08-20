@@ -10,11 +10,15 @@ export {
   KEYS_PROBLEM_TO_BACKEND,
   resolveBatteryProblemCode,
   resolveCatalogIds,
+  resolveDiagnosticsProblemCode,
+  resolveKeysProblemCode,
 } from './mapping';
 export {
+  createRoadsideRequest,
   createServiceRequest,
   getServiceRequest,
   listServiceRequests,
+  listServiceRequestsFirstPage,
 } from './requests';
 export { getServiceCatalog, listServices, useServices } from './services';
 export {
@@ -25,6 +29,7 @@ export {
   setTokenPair,
 } from './tokens';
 export type {
+  ApiRequestStatus,
   ApiService,
   ApiServiceProblem,
   ApiServiceRequest,

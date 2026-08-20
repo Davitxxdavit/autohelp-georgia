@@ -61,9 +61,21 @@ export type ApiVehicleWrite = {
   vin?: string | null;
 };
 
+export type ApiRequestStatus =
+  | 'REQUESTED'
+  | 'SEARCHING'
+  | 'ASSIGNED'
+  | 'ACCEPTED'
+  | 'ON_THE_WAY'
+  | 'ARRIVED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'DECLINED'
+  | 'CANCELLED';
+
 export type ApiServiceRequest = {
   id: string;
-  status: string;
+  status: ApiRequestStatus | string;
   vehicle: ApiVehicle;
   service: string;
   service_code: string;

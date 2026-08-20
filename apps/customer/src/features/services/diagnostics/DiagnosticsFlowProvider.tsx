@@ -17,6 +17,12 @@ import type {
   DiagnosticsRating,
 } from './types';
 
+export type DiagnosticsRequestCreated = {
+  id: string;
+  estimatedPriceAmount: string | null;
+  estimatedPriceCurrency: string | null;
+};
+
 function createEmptyDraft(): DiagnosticsDraft {
   return {
     optionId: null,
@@ -27,6 +33,9 @@ function createEmptyDraft(): DiagnosticsDraft {
     requestedAt: null,
     completedAt: null,
     rating: null,
+    serviceRequestId: null,
+    backendEstimatedPriceAmount: null,
+    backendEstimatedPriceCurrency: null,
   };
 }
 
@@ -45,7 +54,7 @@ type DiagnosticsFlowContextValue = {
   setProblem: (id: DiagnosticsProblemId) => void;
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
-  markRequested: () => void;
+  markRequested: (created?: DiagnosticsRequestCreated) => void;
   markCompleted: () => void;
   setRating: (rating: DiagnosticsRating) => void;
   reset: () => void;
@@ -78,11 +87,16 @@ export function DiagnosticsFlowProvider({ children }: { children: ReactNode }) {
     setDraft((prev) => persistDraft({ ...prev, location }));
   }, []);
 
-  const markRequested = useCallback(() => {
+  const markRequested = useCallback((created?: DiagnosticsRequestCreated) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
         requestedAt: prev.requestedAt ?? new Date().toISOString(),
+        serviceRequestId: created?.id ?? prev.serviceRequestId,
+        backendEstimatedPriceAmount:
+          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+        backendEstimatedPriceCurrency:
+          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
       }),
     );
   }, []);

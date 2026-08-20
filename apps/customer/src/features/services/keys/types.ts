@@ -29,4 +29,7 @@ export type KeysDraft = {
   requestedAt: string | null;
   completedAt: string | null;
   rating: KeysRating | null;
+  serviceRequestId: string | null;
+  backendEstimatedPriceAmount: string | null;
+  backendEstimatedPriceCurrency: string | null;
 };

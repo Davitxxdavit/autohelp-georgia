@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
@@ -15,6 +16,9 @@ import {
 } from '@/features/services/diagnostics/mock';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import { isApiError } from '@/lib/api/errors';
+import { resolveDiagnosticsProblemCode } from '@/lib/api/mapping';
+import { createRoadsideRequest } from '@/lib/api/requests';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -40,8 +44,45 @@ export default function DiagnosticsSummaryScreen() {
   const problem = draft.problemId
     ? getDiagnosticsProblem(draft.problemId)
     : undefined;
+  const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && option && problem);
+  const canSubmit = Boolean(vehicle && option && problem) && !submitting;
+
+  const onRequestDiagnostics = async () => {
+    if (!vehicle || !option || !problem || !draft.problemId || submitting) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const created = await createRoadsideRequest({
+        frontendServiceId: 'diagnostics',
+        problemCode: resolveDiagnosticsProblemCode(draft.problemId),
+        vehicleId: vehicle.id,
+        latitude: draft.location.point.latitude,
+        longitude: draft.location.point.longitude,
+        address: draft.location.label,
+      });
+      markRequested({
+        id: created.id,
+        estimatedPriceAmount: created.estimated_price_amount,
+        estimatedPriceCurrency: created.estimated_price_currency,
+      });
+      router.push('/diagnostics/searching' as Href);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[AutoHelp] Diagnostics request create failed', error);
+        if (isApiError(error)) {
+          console.warn('[AutoHelp] status', error.status, 'body', error.body);
+        }
+      }
+      Alert.alert(
+        'Request failed',
+        'Couldn’t send your request. Check your connection and try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -54,12 +95,10 @@ export default function DiagnosticsSummaryScreen() {
           contentContainerStyle={styles.content}
           footer={
             <PrimaryButton
-              label="Request diagnostics"
+              label={submitting ? 'Sending…' : 'Request diagnostics'}
               disabled={!canSubmit}
               onPress={() => {
-                if (!canSubmit) return;
-                markRequested();
-                router.push('/diagnostics/searching' as Href);
+                void onRequestDiagnostics();
               }}
             />
           }

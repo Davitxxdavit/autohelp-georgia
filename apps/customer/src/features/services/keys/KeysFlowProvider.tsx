@@ -12,6 +12,12 @@ import type { MockLocation } from '@/features/services/flow/types';
 
 import type { KeysDraft, KeysProblemId, KeysRating } from './types';
 
+export type KeysRequestCreated = {
+  id: string;
+  estimatedPriceAmount: string | null;
+  estimatedPriceCurrency: string | null;
+};
+
 function createEmptyDraft(): KeysDraft {
   return {
     vehicleId: null,
@@ -21,6 +27,9 @@ function createEmptyDraft(): KeysDraft {
     requestedAt: null,
     completedAt: null,
     rating: null,
+    serviceRequestId: null,
+    backendEstimatedPriceAmount: null,
+    backendEstimatedPriceCurrency: null,
   };
 }
 
@@ -38,7 +47,7 @@ type KeysFlowContextValue = {
   setProblem: (id: KeysProblemId) => void;
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
-  markRequested: () => void;
+  markRequested: (created?: KeysRequestCreated) => void;
   markCompleted: () => void;
   setRating: (rating: KeysRating) => void;
   reset: () => void;
@@ -65,11 +74,16 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
     setDraft((prev) => persistDraft({ ...prev, location }));
   }, []);
 
-  const markRequested = useCallback(() => {
+  const markRequested = useCallback((created?: KeysRequestCreated) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
         requestedAt: prev.requestedAt ?? new Date().toISOString(),
+        serviceRequestId: created?.id ?? prev.serviceRequestId,
+        backendEstimatedPriceAmount:
+          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+        backendEstimatedPriceCurrency:
+          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
       }),
     );
   }, []);
