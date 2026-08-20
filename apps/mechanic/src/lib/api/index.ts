@@ -7,7 +7,10 @@ export {
   acceptOffer,
   declineOffer,
   getActiveJob,
+  getMechanicMe,
   listPendingOffers,
+  patchMechanicMe,
+  transitionJob,
 } from './mechanic';
 export { clearTokens, getAccessToken, setTokenPair } from './tokens';
-export type { ApiMechanicOffer, TokenPair } from './types';
+export type { ApiMechanicMe, ApiMechanicOffer, TokenPair } from './types';

@@ -33,7 +33,30 @@ class MechanicOfferRequestSerializer(serializers.Serializer):
     estimated_price_currency = serializers.CharField()
     price_is_estimate = serializers.BooleanField()
     created_at = serializers.DateTimeField()
+    accepted_at = serializers.DateTimeField(allow_null=True)
+    arrived_at = serializers.DateTimeField(allow_null=True)
+    started_at = serializers.DateTimeField(allow_null=True)
+    completed_at = serializers.DateTimeField(allow_null=True)
     vehicle = MechanicOfferVehicleSerializer()
+
+
+class MechanicMeSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    online = serializers.BooleanField(
+        help_text=(
+            "Controls new offer eligibility only. Going offline does not "
+            "cancel an active accepted job."
+        )
+    )
+    verified = serializers.BooleanField()
+    approval_status = serializers.CharField()
+    rating_average = serializers.DecimalField(max_digits=3, decimal_places=2)
+
+
+class MechanicMeUpdateSerializer(serializers.Serializer):
+    online = serializers.BooleanField()
 
 
 class MechanicOfferSerializer(serializers.Serializer):
@@ -69,6 +92,10 @@ def serialize_mechanic_offer(offer: MechanicRequestOffer) -> dict:
             "estimated_price_currency": request.estimated_price_currency,
             "price_is_estimate": request.price_is_estimate,
             "created_at": request.created_at,
+            "accepted_at": request.accepted_at,
+            "arrived_at": request.arrived_at,
+            "started_at": request.started_at,
+            "completed_at": request.completed_at,
             "vehicle": {
                 "make": vehicle.make,
                 "model": vehicle.model,
@@ -76,4 +103,16 @@ def serialize_mechanic_offer(offer: MechanicRequestOffer) -> dict:
                 "fuel": vehicle.fuel,
             },
         },
+    }
+
+
+def serialize_mechanic_me(profile) -> dict:
+    return {
+        "id": str(profile.id),
+        "first_name": profile.first_name,
+        "last_name": profile.last_name,
+        "online": profile.online,
+        "verified": profile.verified,
+        "approval_status": profile.approval_status,
+        "rating_average": profile.rating_average,
     }

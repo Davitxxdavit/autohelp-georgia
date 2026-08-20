@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -13,7 +13,10 @@ from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED
 from apps.requests.exceptions import Conflict
 from apps.requests.matching import ACTIVE_JOB_STATUSES, issue_offers_for_unmatched_requests
 from apps.requests.mechanic_serializers import (
+    MechanicMeSerializer,
+    MechanicMeUpdateSerializer,
     MechanicOfferSerializer,
+    serialize_mechanic_me,
     serialize_mechanic_offer,
 )
 from apps.requests.models import (
@@ -21,6 +24,10 @@ from apps.requests.models import (
     OfferStatus,
     RequestStatus,
     ServiceRequest,
+)
+from apps.requests.transitions import (
+    apply_mechanic_operational_transition,
+    set_mechanic_online,
 )
 
 
@@ -211,7 +218,8 @@ class MechanicActiveJobView(APIView):
         summary="Get the mechanic's active accepted job",
         description=(
             "Returns the accepted offer whose ServiceRequest is still operational "
-            "(ACCEPTED through IN_PROGRESS). 204 if none."
+            "(ASSIGNED, ACCEPTED, ON_THE_WAY, ARRIVED, or IN_PROGRESS). "
+            "COMPLETED jobs are not active. 204 if none."
         ),
         responses={
             200: MechanicOfferSerializer,
@@ -235,3 +243,141 @@ class MechanicActiveJobView(APIView):
         if offer is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serialize_mechanic_offer(offer))
+
+
+class MechanicMeView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic]
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="Get the authenticated mechanic profile",
+        description=(
+            "Source of truth for availability. `online` controls new offer "
+            "eligibility only and does not abandon an active accepted job."
+        ),
+        responses={
+            200: MechanicMeSerializer,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+        },
+    )
+    def get(self, request):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        return Response(serialize_mechanic_me(mechanic))
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="Update mechanic availability",
+        description=(
+            "Writable field: `online`.\n\n"
+            "Offline: mechanic is excluded from new matching. Existing PENDING "
+            "offers for this mechanic are expired so they are no longer "
+            "actionable and cannot block later matching. An active accepted "
+            "job is left unchanged.\n\n"
+            "Online: mechanic becomes eligible for new offers again if other "
+            "eligibility checks pass. SEARCHING offers expired by going offline "
+            "are revived as PENDING."
+        ),
+        request=MechanicMeUpdateSerializer,
+        responses={
+            200: MechanicMeSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+        },
+    )
+    def patch(self, request):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        serializer = MechanicMeUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = set_mechanic_online(
+            mechanic, online=serializer.validated_data["online"]
+        )
+        return Response(serialize_mechanic_me(profile))
+
+
+def _job_transition_schema(*, summary: str, description: str):
+    return extend_schema_view(
+        post=extend_schema(
+            tags=["Mechanic"],
+            summary=summary,
+            description=description,
+            request=None,
+            responses={
+                200: MechanicOfferSerializer,
+                401: UNAUTHORIZED,
+                403: FORBIDDEN,
+                404: NOT_FOUND,
+                409: CONFLICT,
+            },
+        )
+    )
+
+
+class MechanicJobTransitionView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic]
+    to_status = None
+
+    def post(self, request, request_id):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        offer = apply_mechanic_operational_transition(
+            request_id=request_id,
+            mechanic=mechanic,
+            changed_by=request.user,
+            to_status=self.to_status,
+        )
+        offer = _offer_queryset(mechanic).get(pk=offer.pk)
+        return Response(serialize_mechanic_offer(offer), status=status.HTTP_200_OK)
+
+
+@_job_transition_schema(
+    summary="Start driving to the customer",
+    description=(
+        "Assigned mechanic only. ACCEPTED → ON_THE_WAY. "
+        "Skipping stages or repeating this action returns 409. "
+        "There is no unrestricted status PATCH."
+    ),
+)
+class MechanicStartDrivingView(MechanicJobTransitionView):
+    to_status = RequestStatus.ON_THE_WAY
+
+
+@_job_transition_schema(
+    summary="Mark arrival at the customer location",
+    description=(
+        "Assigned mechanic only. ON_THE_WAY → ARRIVED. "
+        "Skipping stages or repeating this action returns 409."
+    ),
+)
+class MechanicArriveView(MechanicJobTransitionView):
+    to_status = RequestStatus.ARRIVED
+
+
+@_job_transition_schema(
+    summary="Start roadside service",
+    description=(
+        "Assigned mechanic only. ARRIVED → IN_PROGRESS. "
+        "Skipping stages or repeating this action returns 409."
+    ),
+)
+class MechanicStartServiceView(MechanicJobTransitionView):
+    to_status = RequestStatus.IN_PROGRESS
+
+
+@_job_transition_schema(
+    summary="Complete the roadside job",
+    description=(
+        "Assigned mechanic only. IN_PROGRESS → COMPLETED. "
+        "The job is no longer returned by GET /mechanic/jobs/active/. "
+        "If the mechanic is online, they become eligible for new offers. "
+        "Does not calculate earnings or payments."
+    ),
+)
+class MechanicCompleteJobView(MechanicJobTransitionView):
+    to_status = RequestStatus.COMPLETED

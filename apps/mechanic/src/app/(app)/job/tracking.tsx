@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -132,6 +132,7 @@ function TrackingFacts({ job }: { job: MockJob }) {
 export default function JobTrackingScreen() {
   const router = useRouter();
   const { activeJob, updateJobStatus } = useMechanicSession();
+  const [busy, setBusy] = useState(false);
   const action = activeJob ? trackingAction(activeJob.status) : null;
 
   useEffect(() => {
@@ -151,12 +152,16 @@ export default function JobTrackingScreen() {
   };
 
   const onPrimary = () => {
-    if (!activeJob || !action) return;
-    const next = updateJobStatus(activeJob.id, action.next);
-    if (!next) return;
-    if (next.status === 'IN_PROGRESS') {
-      router.replace(getActiveJobRoute(next.status));
-    }
+    if (!activeJob || !action || busy) return;
+    setBusy(true);
+    void (async () => {
+      const next = await updateJobStatus(activeJob.id, action.next);
+      setBusy(false);
+      if (!next) return;
+      if (next.status === 'IN_PROGRESS') {
+        router.replace(getActiveJobRoute(next.status));
+      }
+    })();
   };
 
   if (!activeJob) {
@@ -190,7 +195,11 @@ export default function JobTrackingScreen() {
       footer={
         action ? (
           <>
-            <PrimaryButton label={action.label} onPress={onPrimary} />
+            <PrimaryButton
+              label={busy ? 'Updating…' : action.label}
+              disabled={busy}
+              onPress={onPrimary}
+            />
             <AnimatedPressable
               accessibilityLabel="Contact customer"
               onPress={onContact}

@@ -163,7 +163,18 @@ This is **not** the production OTP login.
 | GET/PATCH/DELETE | `/api/v1/vehicles/{id}/` | owner only |
 | GET/POST | `/api/v1/requests/` | customer: own requests; mechanic: assigned only |
 | GET | `/api/v1/requests/{id}/` | owner / assigned / staff |
+| GET/PATCH | `/api/v1/mechanic/me/` | mechanic availability (`online`) |
+| GET | `/api/v1/mechanic/offers/` | mechanic pending inbox |
+| POST | `/api/v1/mechanic/offers/{id}/accept/` | claim SEARCHING request |
+| POST | `/api/v1/mechanic/offers/{id}/decline/` | decline own offer only |
+| GET | `/api/v1/mechanic/jobs/active/` | current operational job, or 204 |
+| POST | `/api/v1/mechanic/jobs/{request_id}/start-driving/` | ACCEPTED → ON_THE_WAY |
+| POST | `/api/v1/mechanic/jobs/{request_id}/arrive/` | ON_THE_WAY → ARRIVED |
+| POST | `/api/v1/mechanic/jobs/{request_id}/start-service/` | ARRIVED → IN_PROGRESS |
+| POST | `/api/v1/mechanic/jobs/{request_id}/complete/` | IN_PROGRESS → COMPLETED |
 | POST | `/api/v1/ratings/` | customer, completed request, one rating |
+
+Mechanic `online` controls **new** offer eligibility only. Going offline expires that mechanic's PENDING offers and does not cancel an active accepted job. Operational status changes are explicit POSTs; there is no unrestricted `PATCH status`.
 
 Request create is limited to:
 

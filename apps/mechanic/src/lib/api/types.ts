@@ -37,6 +37,10 @@ export type ApiOfferRequest = {
   estimated_price_currency: string;
   price_is_estimate: boolean;
   created_at: string;
+  accepted_at: string | null;
+  arrived_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
   vehicle: ApiOfferVehicle;
 };
 
@@ -46,4 +50,14 @@ export type ApiMechanicOffer = {
   created_at: string;
   responded_at: string | null;
   request: ApiOfferRequest;
+};
+
+export type ApiMechanicMe = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  online: boolean;
+  verified: boolean;
+  approval_status: string;
+  rating_average: string | number;
 };

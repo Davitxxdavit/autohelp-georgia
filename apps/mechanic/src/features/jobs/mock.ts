@@ -13,6 +13,7 @@ export const MOCK_MECHANIC_START_POINT: MockGeoPoint = {
 
 export const MOCK_BATTERY_JOB: MockJob = {
   id: 'job_battery_001',
+  requestId: 'req_battery_001',
   serviceId: 'BATTERY',
   status: 'ASSIGNED',
   customerLabel: 'ნიკა',

@@ -26,8 +26,14 @@ function greetingForHour(hour: number): string {
 export default function MechanicHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile, incomingJob, activeJob, setOnline, refreshIncoming } =
-    useMechanicSession();
+  const {
+    profile,
+    incomingJob,
+    activeJob,
+    availabilityBusy,
+    setOnline,
+    refreshIncoming,
+  } = useMechanicSession();
   const greeting = greetingForHour(new Date().getHours());
 
   useFocusEffect(
@@ -55,9 +61,16 @@ export default function MechanicHomeScreen() {
       <AnimatedPressable
         accessibilityLabel={profile.online ? 'Go offline' : 'Go online'}
         accessibilityRole="switch"
-        accessibilityState={{ checked: profile.online }}
-        onPress={() => setOnline(!profile.online)}
-        style={[styles.toggle, profile.online ? styles.toggleOn : styles.toggleOff]}
+        accessibilityState={{ checked: profile.online, disabled: availabilityBusy }}
+        disabled={availabilityBusy}
+        onPress={() => {
+          void setOnline(!profile.online);
+        }}
+        style={[
+          styles.toggle,
+          profile.online ? styles.toggleOn : styles.toggleOff,
+          availabilityBusy && styles.toggleBusy,
+        ]}
       >
         <View style={[styles.toggleDot, profile.online ? styles.dotOn : styles.dotOff]} />
         <AppText variant="button" color={profile.online ? 'success' : 'textSecondary'}>
@@ -167,6 +180,9 @@ const styles = StyleSheet.create({
   toggleOff: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
+  },
+  toggleBusy: {
+    opacity: 0.55,
   },
   toggleDot: {
     width: 8,

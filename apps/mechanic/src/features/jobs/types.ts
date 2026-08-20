@@ -20,6 +20,7 @@ export type MockGeoPoint = {
 
 export type MockJob = {
   id: string;
+  requestId: string;
   serviceId: ServiceId;
   status: JobStatus;
   customerLabel: string;

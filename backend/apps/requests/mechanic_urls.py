@@ -1,12 +1,41 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.requests.mechanic_views import MechanicActiveJobView, MechanicOfferViewSet
+from apps.requests.mechanic_views import (
+    MechanicActiveJobView,
+    MechanicArriveView,
+    MechanicCompleteJobView,
+    MechanicMeView,
+    MechanicOfferViewSet,
+    MechanicStartDrivingView,
+    MechanicStartServiceView,
+)
 
 router = DefaultRouter()
 router.register("offers", MechanicOfferViewSet, basename="mechanic-offer")
 
 urlpatterns = [
+    path("me/", MechanicMeView.as_view(), name="mechanic-me"),
     path("jobs/active/", MechanicActiveJobView.as_view(), name="mechanic-active-job"),
+    path(
+        "jobs/<uuid:request_id>/start-driving/",
+        MechanicStartDrivingView.as_view(),
+        name="mechanic-job-start-driving",
+    ),
+    path(
+        "jobs/<uuid:request_id>/arrive/",
+        MechanicArriveView.as_view(),
+        name="mechanic-job-arrive",
+    ),
+    path(
+        "jobs/<uuid:request_id>/start-service/",
+        MechanicStartServiceView.as_view(),
+        name="mechanic-job-start-service",
+    ),
+    path(
+        "jobs/<uuid:request_id>/complete/",
+        MechanicCompleteJobView.as_view(),
+        name="mechanic-job-complete",
+    ),
     path("", include(router.urls)),
 ]

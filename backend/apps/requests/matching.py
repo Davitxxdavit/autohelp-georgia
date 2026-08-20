@@ -27,7 +27,7 @@ def eligible_mechanics_for_service(service):
             user__role=Role.MECHANIC,
             user__is_active=True,
             verified=True,
-            online=True,
+            online=True,  # Offline mechanics must not receive new offers.
             approval_status=ApprovalStatus.APPROVED,
             services=service,
         )

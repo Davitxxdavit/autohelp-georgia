@@ -38,6 +38,7 @@ export function mapOfferToJob(
   const amount = request.estimated_price_amount;
   return {
     id: offer.id,
+    requestId: request.id,
     serviceId: asServiceId(request.service_code),
     status,
     customerLabel: request.customer_display_name,

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -16,6 +16,7 @@ import { spacing } from '@/theme/spacing';
 export default function JobServiceScreen() {
   const router = useRouter();
   const { activeJob, updateJobStatus } = useMechanicSession();
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!activeJob) return;
@@ -25,7 +26,7 @@ export default function JobServiceScreen() {
   }, [activeJob, router]);
 
   const onComplete = () => {
-    if (!activeJob) return;
+    if (!activeJob || busy) return;
     Alert.alert(
       'Complete service?',
       'Confirm that the roadside assistance has been completed.',
@@ -34,9 +35,13 @@ export default function JobServiceScreen() {
         {
           text: 'Complete service',
           onPress: () => {
-            const next = updateJobStatus(activeJob.id, 'COMPLETED');
-            if (!next) return;
-            router.replace(getActiveJobRoute(next.status));
+            setBusy(true);
+            void (async () => {
+              const next = await updateJobStatus(activeJob.id, 'COMPLETED');
+              setBusy(false);
+              if (!next) return;
+              router.replace(getActiveJobRoute(next.status));
+            })();
           },
         },
       ],
@@ -57,7 +62,11 @@ export default function JobServiceScreen() {
   return (
     <JobScreenScaffold
       footer={
-        <PrimaryButton label="Complete service" onPress={onComplete} />
+        <PrimaryButton
+          label={busy ? 'Completing…' : 'Complete service'}
+          disabled={busy}
+          onPress={onComplete}
+        />
       }
     >
       <View style={styles.hero}>
