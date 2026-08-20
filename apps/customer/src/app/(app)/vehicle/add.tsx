@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,6 +22,7 @@ import {
 } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import { FUEL_TYPES, type FuelType } from '@/features/vehicles/types';
+import { isApiError } from '@/lib/api/errors';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -107,6 +109,17 @@ export default function AddVehicleScreen() {
           params: { id: created.id },
         });
       }
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[AutoHelp] Vehicle save failed', error);
+        if (isApiError(error)) {
+          console.warn('[AutoHelp] status', error.status, 'body', error.body);
+        }
+      }
+      Alert.alert(
+        'Couldn’t save vehicle',
+        'Check your connection and try again.',
+      );
     } finally {
       setSaving(false);
     }

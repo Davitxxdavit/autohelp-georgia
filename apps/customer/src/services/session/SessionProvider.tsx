@@ -9,6 +9,8 @@ import {
 } from 'react';
 
 import type { LanguageId } from '@/constants/languages';
+import { obtainDevelopmentJwt } from '@/lib/api/devAuth';
+import { clearTokens } from '@/lib/api/tokens';
 import { resetAppState } from '@/services/storage/reset';
 
 import {
@@ -55,7 +57,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     readSession()
-      .then((snapshot) => {
+      .then(async (snapshot) => {
+        if (snapshot.authenticated) {
+          await obtainDevelopmentJwt();
+        }
         if (mounted) {
           setSession(snapshot);
           setIsLoading(false);
@@ -84,6 +89,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const mockSignIn = useCallback(async (phone: string) => {
     await writeMockAuthenticated(phone);
+    await obtainDevelopmentJwt();
     setSession((prev) => ({
       ...prev,
       authenticated: true,
@@ -93,6 +99,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const mockSignOut = useCallback(async () => {
     await clearMockAuthenticated();
+    await clearTokens();
     setSession((prev) => ({
       ...prev,
       authenticated: false,

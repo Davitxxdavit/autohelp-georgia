@@ -17,9 +17,23 @@ Do not commit `.env`. Copy from `.env.example`.
 
 ## API base URL
 
+Windows host / browser:
+
 ```
 http://127.0.0.1:8000/api/v1/
 ```
+
+Android Emulator (the emulator loopback is not the Windows host):
+
+```
+http://10.0.2.2:8000/api/v1/
+```
+
+Physical device: use the PC LAN IPv4, e.g. `http://192.168.x.x:8000/api/v1/`.
+
+iOS Simulator typically uses `http://127.0.0.1:8000/api/v1/`.
+
+Development `ALLOWED_HOSTS` includes `10.0.2.2` so the emulator Host header is accepted. Do not copy that alias into production settings.
 
 Admin:
 

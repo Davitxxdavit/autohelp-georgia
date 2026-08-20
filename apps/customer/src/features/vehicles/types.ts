@@ -12,6 +12,10 @@ export type Vehicle = {
   nickname?: string;
   isPrimary: boolean;
   createdAt: string;
+  /** Backend field; optional in UI for now. */
+  licensePlate?: string;
+  /** Backend field; optional in UI for now. */
+  vin?: string | null;
 };
 
 export type VehicleInput = {

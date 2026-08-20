@@ -50,4 +50,9 @@ export type BatteryDraft = {
   requestedAt: string | null;
   completedAt: string | null;
   rating: BatteryRating | null;
+  /** Real Django ServiceRequest.id after POST /requests/ succeeds. */
+  serviceRequestId: string | null;
+  /** Backend catalog estimate after creation. Summary still shows mock price before POST. */
+  backendEstimatedPriceAmount: string | null;
+  backendEstimatedPriceCurrency: string | null;
 };

@@ -16,6 +16,12 @@ import type {
   MockLocation,
 } from './types';
 
+export type BatteryRequestCreated = {
+  id: string;
+  estimatedPriceAmount: string | null;
+  estimatedPriceCurrency: string | null;
+};
+
 function createEmptyDraft(): BatteryDraft {
   return {
     optionId: null,
@@ -26,6 +32,9 @@ function createEmptyDraft(): BatteryDraft {
     requestedAt: null,
     completedAt: null,
     rating: null,
+    serviceRequestId: null,
+    backendEstimatedPriceAmount: null,
+    backendEstimatedPriceCurrency: null,
   };
 }
 
@@ -44,7 +53,7 @@ type BatteryFlowContextValue = {
   setProblem: (id: BatteryProblemId) => void;
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
-  markRequested: () => void;
+  markRequested: (created?: BatteryRequestCreated) => void;
   markCompleted: () => void;
   setRating: (rating: BatteryRating) => void;
   reset: () => void;
@@ -75,11 +84,16 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
     setDraft((prev) => persistDraft({ ...prev, location }));
   }, []);
 
-  const markRequested = useCallback(() => {
+  const markRequested = useCallback((created?: BatteryRequestCreated) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
         requestedAt: prev.requestedAt ?? new Date().toISOString(),
+        serviceRequestId: created?.id ?? prev.serviceRequestId,
+        backendEstimatedPriceAmount:
+          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+        backendEstimatedPriceCurrency:
+          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
       }),
     );
   }, []);

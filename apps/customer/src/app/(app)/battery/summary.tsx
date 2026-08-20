@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
@@ -15,6 +16,9 @@ import {
 } from '@/features/services/battery/mock';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import { createServiceRequest } from '@/lib/api/requests';
+import { resolveBatteryProblemCode, resolveCatalogIds } from '@/lib/api/mapping';
+import { isApiError } from '@/lib/api/errors';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -38,8 +42,49 @@ export default function BatterySummaryScreen() {
   const problem = draft.problemId
     ? getBatteryProblem(draft.problemId)
     : undefined;
+  const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && option && problem);
+  const canSubmit = Boolean(vehicle && option && problem) && !submitting;
+
+  const onRequestAssistance = async () => {
+    if (!vehicle || !option || !problem || !draft.problemId || submitting) return;
+    setSubmitting(true);
+    try {
+      const { service, problem: apiProblem } = await resolveCatalogIds({
+        frontendServiceId: 'battery',
+        problemCode: resolveBatteryProblemCode(draft.problemId, draft.optionId),
+      });
+
+      const created = await createServiceRequest({
+        vehicle: vehicle.id,
+        service: service.id,
+        problem: apiProblem.id,
+        customer_latitude: draft.location.point.latitude,
+        customer_longitude: draft.location.point.longitude,
+        customer_address: draft.location.label,
+      });
+
+      markRequested({
+        id: created.id,
+        estimatedPriceAmount: created.estimated_price_amount,
+        estimatedPriceCurrency: created.estimated_price_currency,
+      });
+      router.push('/battery/searching');
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[AutoHelp] Battery request create failed', error);
+        if (isApiError(error)) {
+          console.warn('[AutoHelp] status', error.status, 'body', error.body);
+        }
+      }
+      Alert.alert(
+        'Request failed',
+        'Couldn’t send your request. Check your connection and try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -52,12 +97,10 @@ export default function BatterySummaryScreen() {
           contentContainerStyle={styles.content}
           footer={
             <PrimaryButton
-              label="Request assistance"
+              label={submitting ? 'Sending…' : 'Request assistance'}
               disabled={!canSubmit}
               onPress={() => {
-                if (!canSubmit) return;
-                markRequested();
-                router.push('/battery/searching');
+                void onRequestAssistance();
               }}
             />
           }

@@ -9,6 +9,21 @@ import {
 } from 'react';
 
 import {
+  createVehicle as createApiVehicle,
+  deleteVehicle as deleteApiVehicle,
+  hasAccessToken,
+  listVehicles as listApiVehicles,
+  updateVehicle as updateApiVehicle,
+} from '@/lib/api';
+
+import {
+  readVehicleUiMeta,
+  removeVehicleUiMeta,
+  upsertVehicleUiMeta,
+  writeVehicleUiMeta,
+} from './localMeta';
+import { mapApiVehiclesToUi, toVehicleWritePayload } from './mapApiVehicle';
+import {
   addVehicle,
   deleteVehicle,
   readVehicles,
@@ -31,55 +46,115 @@ type VehiclesContextValue = {
 
 const VehiclesContext = createContext<VehiclesContextValue | null>(null);
 
+/**
+ * When a JWT is present, vehicles load from Django.
+ * nickname / isPrimary stay local (backend has neither).
+ * Without a token, the previous AsyncStorage mock list is kept.
+ */
 export function VehiclesProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [useApi, setUseApi] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const refresh = useCallback(async () => {
-    const next = await readVehicles();
-    setVehicles(next);
+    const tokenReady = await hasAccessToken();
+    setUseApi(tokenReady);
+    if (tokenReady) {
+      const [apis, meta] = await Promise.all([
+        listApiVehicles(),
+        readVehicleUiMeta(),
+      ]);
+      setVehicles(mapApiVehiclesToUi(apis, meta));
+      return;
+    }
+    setVehicles(await readVehicles());
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    readVehicles()
-      .then((next) => {
-        if (mounted) {
-          setVehicles(next);
-          setReady(true);
-        }
+    refresh()
+      .catch((error) => {
+        console.warn('[AutoHelp] Vehicles load failed', error);
+        if (mounted) setVehicles([]);
       })
-      .catch(() => {
-        if (mounted) {
-          setVehicles([]);
-          setReady(true);
-        }
+      .finally(() => {
+        if (mounted) setReady(true);
       });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refresh]);
 
   const add = useCallback(async (input: VehicleInput) => {
+    if (await hasAccessToken()) {
+      const created = await createApiVehicle(toVehicleWritePayload(input));
+      await upsertVehicleUiMeta({
+        id: created.id,
+        nickname: input.nickname,
+        isPrimary: input.isPrimary,
+      });
+      const [apis, meta] = await Promise.all([
+        listApiVehicles(),
+        readVehicleUiMeta(),
+      ]);
+      const next = mapApiVehiclesToUi(apis, meta);
+      setVehicles(next);
+      setUseApi(true);
+      return next.find((item) => item.id === created.id) ?? next[0]!;
+    }
     const next = await addVehicle(input);
     setVehicles(next);
     return next[next.length - 1]!;
   }, []);
 
   const update = useCallback(async (id: string, input: VehicleInput) => {
-    const next = await updateVehicle(id, input);
-    setVehicles(next);
+    if (await hasAccessToken()) {
+      await updateApiVehicle(id, toVehicleWritePayload(input));
+      await upsertVehicleUiMeta({
+        id,
+        nickname: input.nickname,
+        isPrimary: input.isPrimary,
+      });
+      const [apis, meta] = await Promise.all([
+        listApiVehicles(),
+        readVehicleUiMeta(),
+      ]);
+      setVehicles(mapApiVehiclesToUi(apis, meta));
+      setUseApi(true);
+      return;
+    }
+    setVehicles(await updateVehicle(id, input));
   }, []);
 
   const remove = useCallback(async (id: string) => {
-    const next = await deleteVehicle(id);
-    setVehicles(next);
+    if (await hasAccessToken()) {
+      await deleteApiVehicle(id);
+      await removeVehicleUiMeta(id);
+      const [apis, meta] = await Promise.all([
+        listApiVehicles(),
+        readVehicleUiMeta(),
+      ]);
+      setVehicles(mapApiVehiclesToUi(apis, meta));
+      setUseApi(true);
+      return;
+    }
+    setVehicles(await deleteVehicle(id));
   }, []);
 
   const setPrimary = useCallback(async (id: string) => {
-    const next = await setPrimaryVehicle(id);
-    setVehicles(next);
-  }, []);
+    if (useApi || (await hasAccessToken())) {
+      const meta = await readVehicleUiMeta();
+      await writeVehicleUiMeta({ ...meta, primaryId: id });
+      setVehicles((current) =>
+        current.map((vehicle) => ({
+          ...vehicle,
+          isPrimary: vehicle.id === id,
+        })),
+      );
+      return;
+    }
+    setVehicles(await setPrimaryVehicle(id));
+  }, [useApi]);
 
   const getById = useCallback(
     (id: string) => vehicles.find((vehicle) => vehicle.id === id),

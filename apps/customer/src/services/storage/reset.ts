@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { clearTokens } from '@/lib/api/tokens';
 import { SESSION_STORAGE_KEYS } from '@/services/session/storage';
 
 /**
@@ -26,6 +27,7 @@ export async function resetAppState(): Promise<void> {
     SESSION_STORAGE_KEYS.authenticated,
     SESSION_STORAGE_KEYS.phone,
   ]);
+  await clearTokens();
 
   console.log(
     '[AutoHelp DEV] Cleared language / onboarding / mock auth session keys.',
