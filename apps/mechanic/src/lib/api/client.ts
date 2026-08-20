@@ -1,0 +1,117 @@
+import { joinApiUrl } from './config';
+import { ApiError, kindFromStatus, messageFromBody } from './errors';
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+} from './tokens';
+import type { Paginated, TokenRefreshResponse } from './types';
+
+type RequestOptions = {
+  method?: string;
+  body?: unknown;
+  auth?: boolean;
+  skipRefresh?: boolean;
+};
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+export async function apiRequest<T>(
+  pathOrUrl: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const { method = 'GET', body, auth = true, skipRefresh = false } = options;
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (auth) {
+    const access = await getAccessToken();
+    if (access) headers.Authorization = `Bearer ${access}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(joinApiUrl(pathOrUrl), {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new ApiError({
+      message: error instanceof Error ? error.message : 'Network request failed',
+      status: null,
+      kind: 'network',
+    });
+  }
+
+  if (response.status === 401 && auth && !skipRefresh) {
+    const nextAccess = await refreshAccessTokenOnce();
+    if (nextAccess) {
+      return apiRequest<T>(pathOrUrl, { ...options, skipRefresh: true });
+    }
+    await clearTokens();
+    const bodyJson = await readBody(response);
+    throw new ApiError({
+      message: messageFromBody(bodyJson, 'Session expired. Sign in again.'),
+      status: 401,
+      body: bodyJson,
+      kind: 'unauthorized',
+    });
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const parsed = await readBody(response);
+  if (!response.ok) {
+    throw new ApiError({
+      message: messageFromBody(parsed, `Request failed (${response.status})`),
+      status: response.status,
+      body: parsed,
+      kind: kindFromStatus(response.status),
+    });
+  }
+  return parsed as T;
+}
+
+async function refreshAccessTokenOnce(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const refresh = await getRefreshToken();
+    if (!refresh) return null;
+    try {
+      const data = await apiRequest<TokenRefreshResponse>('/auth/token/refresh/', {
+        method: 'POST',
+        body: { refresh },
+        auth: false,
+        skipRefresh: true,
+      });
+      await setAccessToken(data.access);
+      return data.access;
+    } catch {
+      return null;
+    }
+  })();
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+async function readBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+export async function apiGetList<T>(path: string): Promise<T[]> {
+  const page = await apiRequest<Paginated<T> | T[]>(path);
+  if (Array.isArray(page)) return page;
+  return page.results ?? [];
+}

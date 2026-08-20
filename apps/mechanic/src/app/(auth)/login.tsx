@@ -1,15 +1,36 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { obtainDevelopmentJwt } from '@/lib/api/devAuth';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function MechanicLoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  const onContinue = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const ok = await obtainDevelopmentJwt();
+      if (!ok) {
+        Alert.alert(
+          'Couldn’t sign in',
+          'Development JWT failed. Check EXPO_PUBLIC_API_URL and mechanic seed credentials.',
+        );
+        return;
+      }
+      router.replace('/(app)/(tabs)' as Href);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <View
@@ -26,11 +47,14 @@ export default function MechanicLoginScreen() {
       </AppText>
       <AppText variant="h2">Sign in</AppText>
       <AppText variant="body" color="textSecondary">
-        Mock entry for this build. Real authentication comes later.
+        Development JWT for this build. Production authentication will use phone OTP.
       </AppText>
       <PrimaryButton
-        label="Continue (mock)"
-        onPress={() => router.replace('/(app)/(tabs)' as Href)}
+        label={busy ? 'Signing in…' : 'Continue'}
+        disabled={busy}
+        onPress={() => {
+          void onContinue();
+        }}
       />
     </View>
   );

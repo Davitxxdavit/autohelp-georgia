@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -31,27 +32,49 @@ export default function JobDetailsScreen() {
   const { getJob, acceptJob, declineJob, activeJob } = useMechanicSession();
   const job = typeof id === 'string' ? getJob(id) : undefined;
   const decided = activeJob?.id === job?.id;
+  const [busy, setBusy] = useState(false);
 
   const onDecline = () => {
-    if (!job) return;
-    Alert.alert('Decline request?', 'This mock request will be cleared.', [
+    if (!job || busy) return;
+    Alert.alert('Decline request?', 'This request will be declined.', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Decline',
         style: 'destructive',
         onPress: () => {
-          declineJob(job.id);
-          router.replace('/(app)/(tabs)');
+          void (async () => {
+            setBusy(true);
+            const ok = await declineJob(job.id);
+            setBusy(false);
+            if (!ok) {
+              Alert.alert(
+                'Couldn’t decline',
+                'Check your connection and try again.',
+              );
+              return;
+            }
+            router.replace('/(app)/(tabs)');
+          })();
         },
       },
     ]);
   };
 
   const onAccept = () => {
-    if (!job) return;
-    const next = acceptJob(job.id);
-    if (!next) return;
-    router.replace(getActiveJobRoute(next.status));
+    if (!job || busy) return;
+    void (async () => {
+      setBusy(true);
+      const next = await acceptJob(job.id);
+      setBusy(false);
+      if (!next) {
+        Alert.alert(
+          'Couldn’t accept',
+          'This request may already be claimed. Pull Home to refresh.',
+        );
+        return;
+      }
+      router.replace(getActiveJobRoute(next.status));
+    })();
   };
 
   if (!job) {
@@ -59,7 +82,7 @@ export default function JobDetailsScreen() {
       <JobScreenScaffold>
         <AppText variant="h2">Request not found</AppText>
         <AppText variant="body" color="textSecondary">
-          This mock request is no longer available.
+          This request is no longer available.
         </AppText>
       </JobScreenScaffold>
     );
@@ -75,7 +98,11 @@ export default function JobDetailsScreen() {
           />
         ) : (
           <>
-            <PrimaryButton label="Accept request" onPress={onAccept} />
+            <PrimaryButton
+              label={busy ? 'Working…' : 'Accept request'}
+              disabled={busy}
+              onPress={onAccept}
+            />
             <AnimatedPressable
               accessibilityLabel="Decline"
               onPress={onDecline}
@@ -117,7 +144,7 @@ export default function JobDetailsScreen() {
             </AppText>
             <AppText variant="bodyMedium">{job.estimatedPayoutDisplay}</AppText>
             <AppText variant="caption" color="textMuted">
-              Estimate — not a guaranteed earning
+              Catalog estimate — not a guaranteed earning
             </AppText>
           </View>
         </View>

@@ -85,8 +85,8 @@ export default function IncomingJobScreen() {
             Estimated payout
           </AppText>
           <AppText variant="bodyMedium">{job.estimatedPayoutDisplay}</AppText>
-          <AppText variant="caption" color="textMuted">
-            Estimate — mock catalog
+            <AppText variant="caption" color="textMuted">
+            Catalog estimate — not mechanic earnings
           </AppText>
         </View>
       </Reveal>

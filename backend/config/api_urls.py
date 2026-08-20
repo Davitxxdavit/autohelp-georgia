@@ -9,4 +9,5 @@ urlpatterns = [
     path("vehicles/", include("apps.vehicles.urls")),
     path("requests/", include("apps.requests.urls")),
     path("ratings/", include("apps.ratings.urls")),
+    path("mechanic/", include("apps.requests.mechanic_urls")),
 ]

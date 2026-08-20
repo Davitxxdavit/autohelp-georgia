@@ -179,5 +179,12 @@ SPECTACULAR_SETTINGS = {
             "name": "Ratings",
             "description": "Customer ratings for completed requests.",
         },
+        {
+            "name": "Mechanic",
+            "description": (
+                "Mechanic offer inbox, accept/decline, and active job. "
+                "Offers are distinct from ServiceRequest.assigned_mechanic."
+            ),
+        },
     ],
 }

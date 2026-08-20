@@ -18,7 +18,7 @@ from apps.requests.serializers import (
         summary="List service requests",
         description=(
             "Customers see their own requests. Mechanics see assigned requests only. "
-            "There is no global incoming-offer inbox in Phase 1."
+            "Incoming offers use /api/v1/mechanic/offers/."
         ),
         responses={200: ServiceRequestSerializer, 401: UNAUTHORIZED},
     ),

@@ -1,5 +1,6 @@
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
@@ -25,8 +26,15 @@ function greetingForHour(hour: number): string {
 export default function MechanicHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile, incomingJob, activeJob, setOnline } = useMechanicSession();
+  const { profile, incomingJob, activeJob, setOnline, refreshIncoming } =
+    useMechanicSession();
   const greeting = greetingForHour(new Date().getHours());
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshIncoming();
+    }, [refreshIncoming]),
+  );
 
   return (
     <ScrollView

@@ -162,3 +162,54 @@ class ServiceRequestStatusHistory(models.Model):
 
     def __str__(self) -> str:
         return f"{self.from_status or '—'} → {self.to_status}"
+
+
+class OfferStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    ACCEPTED = "ACCEPTED", "Accepted"
+    DECLINED = "DECLINED", "Declined"
+    EXPIRED = "EXPIRED", "Expired"
+
+
+class MechanicRequestOffer(TimeStampedModel):
+    """
+    Per-mechanic offer for a customer ServiceRequest.
+
+    assigned_mechanic on ServiceRequest means the mechanic who owns the
+    accepted job. Offers are separate so a decline does not assign or
+    cancel the customer request.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.ForeignKey(
+        ServiceRequest,
+        on_delete=models.CASCADE,
+        related_name="offers",
+    )
+    mechanic = models.ForeignKey(
+        "accounts.MechanicProfile",
+        on_delete=models.CASCADE,
+        related_name="request_offers",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=OfferStatus.choices,
+        default=OfferStatus.PENDING,
+    )
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["request", "mechanic"],
+                name="unique_offer_per_mechanic_request",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["mechanic", "status"]),
+            models.Index(fields=["request", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.mechanic} {self.status} ({self.request_id})"

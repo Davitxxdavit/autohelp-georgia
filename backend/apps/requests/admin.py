@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ServiceRequest, ServiceRequestStatusHistory
+from .models import MechanicRequestOffer, ServiceRequest, ServiceRequestStatusHistory
 
 
 class StatusHistoryInline(admin.TabularInline):
@@ -35,6 +35,18 @@ class ServiceRequestAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("requested_at", "created_at", "updated_at")
     inlines = [StatusHistoryInline]
+
+
+@admin.register(MechanicRequestOffer)
+class MechanicRequestOfferAdmin(admin.ModelAdmin):
+    list_display = ("id", "request", "mechanic", "status", "created_at", "responded_at")
+    list_filter = ("status",)
+    search_fields = (
+        "mechanic__first_name",
+        "mechanic__user__phone",
+        "request__id",
+    )
+    readonly_fields = ("created_at", "updated_at", "responded_at")
 
 
 @admin.register(ServiceRequestStatusHistory)

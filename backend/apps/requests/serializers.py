@@ -135,6 +135,10 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
             changed_by=request.user,
             note="Request created",
         )
+        from apps.requests.matching import issue_development_offers
+
+        issue_development_offers(instance, changed_by=request.user)
+        instance.refresh_from_db()
         return instance
 
     def to_representation(self, instance):
