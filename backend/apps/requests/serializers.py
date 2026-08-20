@@ -55,6 +55,17 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+        extra_kwargs = {
+            "estimated_price_amount": {
+                "help_text": (
+                    "Catalog estimate in GEL. Null for Auto Key (never 0). "
+                    "Not a guaranteed payout."
+                ),
+            },
+            "price_is_estimate": {
+                "help_text": "Always true in Phase 1. Not settled payment.",
+            },
+        }
 
 
 class ServiceRequestCreateSerializer(serializers.ModelSerializer):
@@ -68,6 +79,18 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
             "customer_longitude",
             "customer_address",
         )
+        extra_kwargs = {
+            "customer_address": {
+                "required": False,
+                "help_text": "Optional human-readable location label.",
+            },
+            "customer_latitude": {
+                "help_text": "Customer latitude (-90 to 90).",
+            },
+            "customer_longitude": {
+                "help_text": "Customer longitude (-180 to 180).",
+            },
+        }
 
     def validate(self, attrs):
         request = self.context["request"]

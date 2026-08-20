@@ -5,6 +5,17 @@ from apps.vehicles.models import Vehicle
 
 
 class VehicleSerializer(serializers.ModelSerializer):
+    vin = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=17,
+        help_text=(
+            "Optional. When provided: 17 characters, uppercase, "
+            "letters/numbers excluding I, O, and Q. Unique when present."
+        ),
+    )
+
     class Meta:
         model = Vehicle
         fields = (

@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "django_filters",
+    "drf_spectacular",
     "apps.accounts",
     "apps.vehicles",
     "apps.services",
@@ -120,6 +121,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -139,3 +141,43 @@ CORS_ALLOWED_ORIGINS = env_list(
     "http://localhost:8081,http://localhost:8082,http://localhost:19006",
 )
 CORS_ALLOW_ALL_ORIGINS = False
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "AutoHelp API",
+    "DESCRIPTION": (
+        "Backend API for AutoHelp customer, mechanic and administrative clients.\n\n"
+        "JWT authentication uses `Authorization: Bearer <access_token>`.\n\n"
+        "Token obtain currently uses phone + password as a **development foundation only**. "
+        "Production authentication will move to phone OTP.\n\n"
+        "ServiceRequest estimates are catalog values, not guaranteed payouts. "
+        "Auto Key `estimated_price_amount` is null (never 0).\n\n"
+        "OpenAPI docs are public in development. Restrict or disable Swagger in production later."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "TAGS": [
+        {
+            "name": "Authentication",
+            "description": "JWT obtain and refresh. Development password login only.",
+        },
+        {
+            "name": "Services",
+            "description": "Roadside service catalog and nested problems.",
+        },
+        {
+            "name": "Vehicles",
+            "description": "Customer vehicles. VIN is optional.",
+        },
+        {
+            "name": "Requests",
+            "description": "ServiceRequest create, list, and retrieve.",
+        },
+        {
+            "name": "Ratings",
+            "description": "Customer ratings for completed requests.",
+        },
+    ],
+}

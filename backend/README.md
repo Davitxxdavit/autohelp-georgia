@@ -27,6 +27,24 @@ Admin:
 http://127.0.0.1:8000/admin/
 ```
 
+## API docs (Swagger / ReDoc)
+
+```
+Swagger UI:  http://127.0.0.1:8000/api/docs/
+ReDoc:       http://127.0.0.1:8000/api/redoc/
+OpenAPI:     http://127.0.0.1:8000/api/schema/
+```
+
+JWT in Swagger:
+
+1. `POST /api/v1/auth/token/` with development customer `+995555000001` / `Devpass123!` (`seed_dev`, DEBUG only).
+2. Copy the `access` token.
+3. Click **Authorize**.
+4. Enter `Bearer <access>` or the token alone, depending on the Swagger prompt (scheme is HTTP Bearer).
+5. Call authenticated endpoints such as `GET /api/v1/vehicles/`.
+
+Docs are public in development. Restrict or disable Swagger in production later (`SPECTACULAR_SETTINGS` / view permissions). Do not treat password JWT as production auth.
+
 ## Docker workflow (PowerShell)
 
 From `backend/`:
@@ -171,5 +189,7 @@ Production tracking later: Google Maps + device location + these backend coordin
 Set `DJANGO_SETTINGS_MODULE=config.settings.production`.
 
 `DEBUG` is forced off. `SECRET_KEY` and `ALLOWED_HOSTS` are required. CORS wildcard is not enabled.
+
+OpenAPI/Swagger is currently public. Before production traffic, restrict `/api/docs/`, `/api/redoc/`, and `/api/schema/` (for example staff-only) or disable them.
 
 Run with gunicorn when you add a production Compose/host (not in this phase).
