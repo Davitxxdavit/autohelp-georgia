@@ -1,3 +1,4 @@
+import type { ApiServiceRequest } from '@/lib/api/types';
 import type {
   MockLocation,
   ServiceRating,
@@ -32,4 +33,6 @@ export type KeysDraft = {
   serviceRequestId: string | null;
   backendEstimatedPriceAmount: string | null;
   backendEstimatedPriceCurrency: string | null;
+  /** Latest GET /requests/{id}/ payload. Backend is source of truth. */
+  liveRequest: ApiServiceRequest | null;
 };

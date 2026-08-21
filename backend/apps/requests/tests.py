@@ -146,6 +146,30 @@ class MechanicOfferApiTests(APITestCase):
         )
         self.assertEqual(other.status, OfferStatus.EXPIRED)
 
+    def test_customer_request_detail_includes_public_assigned_mechanic(self):
+        created = self.create_battery_request()
+        self.auth(self.customer_user)
+        searching = self.client.get(f"/api/v1/requests/{created.id}/")
+        self.assertEqual(searching.status_code, status.HTTP_200_OK)
+        self.assertIsNone(searching.data["assigned_mechanic"])
+        offer = MechanicRequestOffer.objects.get(
+            request=created, mechanic=self.mechanic
+        )
+        self.auth(self.mechanic_user)
+        self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
+        self.auth(self.customer_user)
+        detail = self.client.get(f"/api/v1/requests/{created.id}/")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        mechanic = detail.data["assigned_mechanic"]
+        self.assertEqual(mechanic["id"], str(self.mechanic.id))
+        self.assertEqual(mechanic["first_name"], "გიორგი")
+        self.assertTrue(mechanic["verified"])
+        self.assertIn("rating_average", mechanic)
+        self.assertNotIn("phone", mechanic)
+        self.assertNotIn("email", mechanic)
+        self.assertNotIn("last_name", mechanic)
+        self.assertEqual(detail.data["status"], RequestStatus.ACCEPTED)
+
     def test_mechanic_can_decline_own_offer(self):
         created = self.create_battery_request()
         offer = MechanicRequestOffer.objects.get(

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,6 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 
-import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -16,7 +15,19 @@ import { BatteryScreenScaffold } from '@/features/services/battery/components/Ba
 import { MechanicCard } from '@/features/services/battery/components/MechanicCard';
 import { TrackingMap } from '@/features/services/battery/components/TrackingMap';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { MOCK_MECHANIC, MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
+import { MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
+import {
+  RequestMissingState,
+  RequestPollHint,
+} from '@/features/services/flow/RequestSyncNotice';
+import {
+  BATTERY_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  trackingStatusCopy,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
+import { requestStatusTone } from '@/lib/api/status';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -49,8 +60,27 @@ function Reveal({
 export default function BatteryTrackingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, markCompleted } = useBatteryFlow();
-  const mechanic = MOCK_MECHANIC;
+  const { draft, setLiveRequest, markCompleted } = useBatteryFlow();
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request, notFound, pollError } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'tracking',
+    routes: BATTERY_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const status = live?.status ?? 'ON_THE_WAY';
+  const mechanic = assignedMechanicIdentity(live);
+  const statusCopy = trackingStatusCopy(status, 'battery');
 
   const onContact = () => {
     Alert.alert(
@@ -58,6 +88,21 @@ export default function BatteryTrackingScreen() {
       'Calling will be available in a later build.',
     );
   };
+
+  if (notFound) {
+    return (
+      <View
+        style={[
+          styles.screen,
+          { paddingTop: insets.top + spacing.lg },
+        ]}
+      >
+        <RequestMissingState
+          onHome={() => router.replace('/(app)/(tabs)')}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -68,33 +113,28 @@ export default function BatteryTrackingScreen() {
     >
       <BatteryScreenScaffold
         contentContainerStyle={styles.content}
-        footer={
-          <PrimaryButton
-            label="Service completed"
-            onPress={() => {
-              markCompleted();
-              router.replace('/battery/completed');
-            }}
-          />
-        }
       >
         <Reveal delayMs={0}>
           <View style={styles.heading}>
             <AppText variant="label" color="primary">
               Battery Assistance
             </AppText>
-            <StatusBadge label="On the way" tone="primary" />
+            <StatusBadge
+              label={statusCopy.title}
+              tone={requestStatusTone(status)}
+            />
           </View>
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
           <View style={styles.eta}>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              Arriving in
+              {statusCopy.caption}
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              ~{mechanic.etaMinutes} min
+              {statusCopy.title}
             </AppText>
+            <RequestPollHint pollError={pollError} />
           </View>
         </Reveal>
 
@@ -107,10 +147,9 @@ export default function BatteryTrackingScreen() {
 
         <Reveal delayMs={timing.slow}>
           <View style={styles.specialist}>
-            <MechanicCard
-              mechanic={mechanic}
-              footer={`${mechanic.distanceKm} km`}
-            />
+            {mechanic ? (
+              <MechanicCard mechanic={mechanic} />
+            ) : null}
             <AnimatedPressable
               accessibilityLabel="Contact specialist"
               onPress={onContact}

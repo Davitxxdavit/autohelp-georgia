@@ -11,7 +11,7 @@ import { Reveal } from '@/features/services/flow/Reveal';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
 import { StarRow } from '@/features/services/flow/StarRow';
 import { useDiagnosticsFlow } from '@/features/services/diagnostics/DiagnosticsFlowProvider';
-import { MOCK_SPECIALIST } from '@/features/services/diagnostics/mock';
+import { assignedMechanicIdentity } from '@/features/services/flow/requestFlow';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -39,14 +39,15 @@ function AspectRow({
 export default function DiagnosticsRatingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setRating, reset } = useDiagnosticsFlow();
+  const { draft, setRating, reset } = useDiagnosticsFlow();
   const [overall, setOverall] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [price, setPrice] = useState(0);
   const [quality, setQuality] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const specialist = MOCK_SPECIALIST;
+  const specialistName =
+    assignedMechanicIdentity(draft.liveRequest)?.name ?? 'your specialist';
 
   if (submitted) {
     return (
@@ -125,7 +126,7 @@ export default function DiagnosticsRatingScreen() {
               How was your experience?
             </AppText>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              How was {specialist.name}?
+              How was {specialistName}?
             </AppText>
           </View>
         </Reveal>

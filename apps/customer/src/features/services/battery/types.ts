@@ -1,3 +1,4 @@
+import type { ApiServiceRequest } from '@/lib/api/types';
 import type {
   MockLocation,
   MockMoney,
@@ -55,4 +56,6 @@ export type BatteryDraft = {
   /** Backend catalog estimate after creation. Summary still shows mock price before POST. */
   backendEstimatedPriceAmount: string | null;
   backendEstimatedPriceCurrency: string | null;
+  /** Latest GET /requests/{id}/ payload. Backend is source of truth. */
+  liveRequest: ApiServiceRequest | null;
 };

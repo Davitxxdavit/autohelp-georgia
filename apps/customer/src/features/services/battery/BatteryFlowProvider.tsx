@@ -15,6 +15,7 @@ import type {
   BatteryRating,
   MockLocation,
 } from './types';
+import type { ApiServiceRequest } from '@/lib/api/types';
 
 export type BatteryRequestCreated = {
   id: string;
@@ -35,6 +36,7 @@ function createEmptyDraft(): BatteryDraft {
     serviceRequestId: null,
     backendEstimatedPriceAmount: null,
     backendEstimatedPriceCurrency: null,
+    liveRequest: null,
   };
 }
 
@@ -54,7 +56,8 @@ type BatteryFlowContextValue = {
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
   markRequested: (created?: BatteryRequestCreated) => void;
-  markCompleted: () => void;
+  markCompleted: (completedAt?: string | null) => void;
+  setLiveRequest: (request: ApiServiceRequest) => void;
   setRating: (rating: BatteryRating) => void;
   reset: () => void;
 };
@@ -98,13 +101,18 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const markCompleted = useCallback(() => {
+  const markCompleted = useCallback((completedAt?: string | null) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
-        completedAt: prev.completedAt ?? new Date().toISOString(),
+        completedAt:
+          prev.completedAt ?? completedAt ?? new Date().toISOString(),
       }),
     );
+  }, []);
+
+  const setLiveRequest = useCallback((liveRequest: ApiServiceRequest) => {
+    setDraft((prev) => persistDraft({ ...prev, liveRequest }));
   }, []);
 
   const setRating = useCallback((rating: BatteryRating) => {
@@ -125,6 +133,7 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     }),
@@ -137,6 +146,7 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     ],

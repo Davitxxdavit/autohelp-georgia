@@ -73,6 +73,13 @@ export type ApiRequestStatus =
   | 'DECLINED'
   | 'CANCELLED';
 
+export type ApiAssignedMechanic = {
+  id: string;
+  first_name: string;
+  verified: boolean;
+  rating_average: string | number;
+};
+
 export type ApiServiceRequest = {
   id: string;
   status: ApiRequestStatus | string;
@@ -81,7 +88,7 @@ export type ApiServiceRequest = {
   service_code: string;
   problem: string;
   problem_code: string;
-  assigned_mechanic: string | null;
+  assigned_mechanic: ApiAssignedMechanic | null;
   customer_latitude: string;
   customer_longitude: string;
   customer_address: string;

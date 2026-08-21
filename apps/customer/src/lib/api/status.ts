@@ -66,6 +66,14 @@ export function isActiveRequestStatus(status: string): boolean {
   return !isHistoryRequestStatus(status);
 }
 
+export function isTerminalRequestStatus(status: string): boolean {
+  return (
+    status === 'COMPLETED' ||
+    status === 'CANCELLED' ||
+    status === 'DECLINED'
+  );
+}
+
 export const SERVICE_CODE_LABELS: Record<string, string> = {
   BATTERY: 'Battery Assistance',
   DIAGNOSTICS: 'Diagnostics',

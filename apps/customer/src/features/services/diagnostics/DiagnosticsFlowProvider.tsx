@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { MOCK_BATUMI_LOCATION } from '@/features/services/flow/location';
 import type { MockLocation } from '@/features/services/flow/types';
 
@@ -36,6 +37,7 @@ function createEmptyDraft(): DiagnosticsDraft {
     serviceRequestId: null,
     backendEstimatedPriceAmount: null,
     backendEstimatedPriceCurrency: null,
+    liveRequest: null,
   };
 }
 
@@ -55,7 +57,8 @@ type DiagnosticsFlowContextValue = {
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
   markRequested: (created?: DiagnosticsRequestCreated) => void;
-  markCompleted: () => void;
+  markCompleted: (completedAt?: string | null) => void;
+  setLiveRequest: (request: ApiServiceRequest) => void;
   setRating: (rating: DiagnosticsRating) => void;
   reset: () => void;
 };
@@ -101,13 +104,18 @@ export function DiagnosticsFlowProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const markCompleted = useCallback(() => {
+  const markCompleted = useCallback((completedAt?: string | null) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
-        completedAt: prev.completedAt ?? new Date().toISOString(),
+        completedAt:
+          prev.completedAt ?? completedAt ?? new Date().toISOString(),
       }),
     );
+  }, []);
+
+  const setLiveRequest = useCallback((liveRequest: ApiServiceRequest) => {
+    setDraft((prev) => persistDraft({ ...prev, liveRequest }));
   }, []);
 
   const setRating = useCallback((rating: DiagnosticsRating) => {
@@ -128,6 +136,7 @@ export function DiagnosticsFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     }),
@@ -140,6 +149,7 @@ export function DiagnosticsFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     ],

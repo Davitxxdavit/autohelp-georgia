@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,14 +9,21 @@ import { AppText } from '@/components/ui/AppText';
 import { Divider } from '@/components/ui/Divider';
 import { Reveal } from '@/features/services/flow/Reveal';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
+import {
+  KEYS_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  requestEstimateLabel,
+  requestVehicleLine,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
 import {
   getKeysProblem,
-  MOCK_SPECIALIST,
   PRICE_CONFIRM_LATER,
 } from '@/features/services/keys/mock';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -29,11 +37,33 @@ function formatWhen(iso: string | null): string {
 export default function KeysCompletedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft } = useKeysFlow();
+  const { draft, setLiveRequest, markCompleted } = useKeysFlow();
   const { getById } = useVehicles();
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
   const problem = draft.problemId ? getKeysProblem(draft.problemId) : undefined;
-  const specialist = MOCK_SPECIALIST;
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'completed',
+    routes: KEYS_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const specialist = assignedMechanicIdentity(live);
+  const vehicleLine =
+    requestVehicleLine(live) ??
+    (vehicle ? `${vehicleTitle(vehicle)} · ${vehicle.year}` : null);
+  const estimate = requestEstimateLabel(live) ?? PRICE_CONFIRM_LATER;
+  const when = live?.completed_at ?? draft.completedAt;
 
   return (
     <View
@@ -74,14 +104,12 @@ export default function KeysCompletedScreen() {
           <View style={styles.details}>
             <Divider />
 
-            {vehicle ? (
+            {vehicleLine ? (
               <View style={styles.block}>
                 <AppText variant="caption" color="textMuted">
                   Your vehicle
                 </AppText>
-                <AppText variant="bodyMedium">
-                  {vehicleTitle(vehicle)} · {vehicle.year}
-                </AppText>
+                <AppText variant="bodyMedium">{vehicleLine}</AppText>
               </View>
             ) : null}
 
@@ -89,14 +117,16 @@ export default function KeysCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Specialist
               </AppText>
-              <AppText variant="bodyMedium">{specialist.name}</AppText>
+              <AppText variant="bodyMedium">
+                {specialist?.name ?? 'Specialist'}
+              </AppText>
             </View>
 
             <View style={styles.block}>
               <AppText variant="caption" color="textMuted">
                 Price
               </AppText>
-              <AppText variant="bodyMedium">{PRICE_CONFIRM_LATER}</AppText>
+              <AppText variant="bodyMedium">{estimate}</AppText>
               <AppText variant="caption" color="textMuted">
                 Confirmed by the specialist
               </AppText>
@@ -106,9 +136,7 @@ export default function KeysCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Date / time
               </AppText>
-              <AppText variant="bodyMedium">
-                {formatWhen(draft.completedAt)}
-              </AppText>
+              <AppText variant="bodyMedium">{formatWhen(when)}</AppText>
             </View>
           </View>
         </Reveal>

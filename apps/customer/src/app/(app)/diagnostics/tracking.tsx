@@ -1,16 +1,26 @@
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { MechanicCard } from '@/features/services/flow/MechanicCard';
 import { Reveal } from '@/features/services/flow/Reveal';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
 import { TrackingMap } from '@/features/services/flow/TrackingMap';
 import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
+import {
+  RequestMissingState,
+  RequestPollHint,
+} from '@/features/services/flow/RequestSyncNotice';
+import {
+  DIAGNOSTICS_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  trackingStatusCopy,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { useDiagnosticsFlow } from '@/features/services/diagnostics/DiagnosticsFlowProvider';
-import { MOCK_SPECIALIST } from '@/features/services/diagnostics/mock';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -18,8 +28,42 @@ import { spacing } from '@/theme/spacing';
 export default function DiagnosticsTrackingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, markCompleted } = useDiagnosticsFlow();
-  const specialist = MOCK_SPECIALIST;
+  const { draft, setLiveRequest, markCompleted } = useDiagnosticsFlow();
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request, notFound, pollError } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'tracking',
+    routes: DIAGNOSTICS_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const status = live?.status ?? 'ON_THE_WAY';
+  const specialist = assignedMechanicIdentity(live);
+  const statusCopy = trackingStatusCopy(status, 'diagnostics');
+
+  if (notFound) {
+    return (
+      <View
+        style={[
+          styles.screen,
+          { paddingTop: insets.top + spacing.lg },
+        ]}
+      >
+        <RequestMissingState
+          onHome={() => router.replace('/(app)/(tabs)' as Href)}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -28,24 +72,13 @@ export default function DiagnosticsTrackingScreen() {
         { paddingTop: insets.top + spacing.lg },
       ]}
     >
-      <ServiceScreenScaffold
-        contentContainerStyle={styles.content}
-        footer={
-          <PrimaryButton
-            label="Service completed"
-            onPress={() => {
-              markCompleted();
-              router.replace('/diagnostics/completed' as Href);
-            }}
-          />
-        }
-      >
+      <ServiceScreenScaffold contentContainerStyle={styles.content}>
         <Reveal delayMs={0}>
           <View style={styles.heading}>
             <AppText variant="label" color="primary">
               Live tracking
             </AppText>
-            <AppText variant="h3">Specialist on the way</AppText>
+            <AppText variant="h3">{statusCopy.title}</AppText>
           </View>
         </Reveal>
 
@@ -59,19 +92,17 @@ export default function DiagnosticsTrackingScreen() {
         <Reveal delayMs={timing.normal}>
           <View style={styles.eta}>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              Arriving in
+              {statusCopy.caption}
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              ~{specialist.etaMinutes} min
+              {statusCopy.title}
             </AppText>
+            <RequestPollHint pollError={pollError} />
           </View>
         </Reveal>
 
         <Reveal delayMs={timing.slow}>
-          <MechanicCard
-            mechanic={specialist}
-            footer={`${specialist.distanceKm} km`}
-          />
+          {specialist ? <MechanicCard mechanic={specialist} /> : null}
         </Reveal>
       </ServiceScreenScaffold>
     </View>

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,10 +18,21 @@ import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider'
 import {
   formatEstimatedPrice,
   getBatteryOption,
-  MOCK_MECHANIC,
 } from '@/features/services/battery/mock';
+import {
+  RequestMissingState,
+  RequestPollHint,
+} from '@/features/services/flow/RequestSyncNotice';
+import {
+  BATTERY_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  requestEstimateLabel,
+  requestVehicleLine,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -53,25 +64,67 @@ function Reveal({
 export default function BatteryFoundScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, reset } = useBatteryFlow();
+  const { draft, reset, setLiveRequest, markCompleted } = useBatteryFlow();
   const { getById } = useVehicles();
   const option = draft.optionId ? getBatteryOption(draft.optionId) : undefined;
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
-  const mechanic = MOCK_MECHANIC;
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request, notFound, pollError } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'found',
+    routes: BATTERY_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const mechanic = assignedMechanicIdentity(live);
+  const vehicleLine =
+    requestVehicleLine(live) ??
+    (vehicle ? `${vehicleTitle(vehicle)} · ${vehicle.year}` : null);
+  const estimate =
+    requestEstimateLabel(live) ??
+    (option ? formatEstimatedPrice(option) : '—');
 
   const onCancel = () => {
-    Alert.alert('Cancel request?', 'This mock request will be closed.', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel request',
-        style: 'destructive',
-        onPress: () => {
-          reset();
-          router.replace('/(app)/(tabs)');
+    Alert.alert(
+      'Leave request?',
+      'You can still find this request in Orders.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            reset();
+            router.replace('/(app)/(tabs)');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
+
+  if (notFound) {
+    return (
+      <View
+        style={[
+          styles.screen,
+          { paddingTop: insets.top + spacing['2xl'] },
+        ]}
+      >
+        <RequestMissingState
+          onHome={() => router.replace('/(app)/(tabs)')}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -109,17 +162,24 @@ export default function BatteryFoundScreen() {
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
-          <MechanicCard mechanic={mechanic} variant="identity" />
+          {mechanic ? (
+            <MechanicCard mechanic={mechanic} variant="identity" />
+          ) : (
+            <AppText variant="body" color="textSecondary" style={styles.center}>
+              Specialist assigned
+            </AppText>
+          )}
         </Reveal>
 
         <Reveal delayMs={timing.normal}>
           <View style={styles.eta}>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              Arriving in
+              Status
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              ~{mechanic.etaMinutes} min
+              Mechanic found
             </AppText>
+            <RequestPollHint pollError={pollError} />
           </View>
         </Reveal>
 
@@ -133,14 +193,12 @@ export default function BatteryFoundScreen() {
               </AppText>
             ) : null}
 
-            {vehicle ? (
+            {vehicleLine ? (
               <View style={styles.block}>
                 <AppText variant="caption" color="textMuted">
                   Your vehicle
                 </AppText>
-                <AppText variant="bodyMedium">
-                  {vehicleTitle(vehicle)} · {vehicle.year}
-                </AppText>
+                <AppText variant="bodyMedium">{vehicleLine}</AppText>
               </View>
             ) : null}
 
@@ -148,9 +206,7 @@ export default function BatteryFoundScreen() {
               <AppText variant="caption" color="textMuted">
                 Estimated price
               </AppText>
-              <AppText variant="bodyMedium">
-                {option ? formatEstimatedPrice(option) : '—'}
-              </AppText>
+              <AppText variant="bodyMedium">{estimate}</AppText>
               <AppText variant="caption" color="textMuted">
                 Price is an estimate
               </AppText>

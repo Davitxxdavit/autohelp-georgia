@@ -9,6 +9,15 @@ export type MockGeoPoint = {
   longitude: number;
 };
 
+export type MechanicIdentity = {
+  id: string;
+  name: string;
+  rating: number;
+  verified: boolean;
+  distanceKm?: number;
+  etaMinutes?: number;
+};
+
 /** Replace with expo-location / reverse geocode later */
 export type MockLocation = {
   id: string;
@@ -19,11 +28,7 @@ export type MockLocation = {
   source: 'mock';
 };
 
-export type MockMechanic = {
-  id: string;
-  name: string;
-  rating: number;
-  verified: boolean;
+export type MockMechanic = MechanicIdentity & {
   distanceKm: number;
   etaMinutes: number;
   source: 'mock';

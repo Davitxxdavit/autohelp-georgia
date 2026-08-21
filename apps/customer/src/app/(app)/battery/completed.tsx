@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,10 +17,17 @@ import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider'
 import {
   formatEstimatedPrice,
   getBatteryOption,
-  MOCK_MECHANIC,
 } from '@/features/services/battery/mock';
+import {
+  BATTERY_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  requestEstimateLabel,
+  requestVehicleLine,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -58,11 +65,35 @@ function Reveal({
 export default function BatteryCompletedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft } = useBatteryFlow();
+  const { draft, setLiveRequest, markCompleted } = useBatteryFlow();
   const { getById } = useVehicles();
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
   const option = draft.optionId ? getBatteryOption(draft.optionId) : undefined;
-  const mechanic = MOCK_MECHANIC;
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'completed',
+    routes: BATTERY_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const mechanic = assignedMechanicIdentity(live);
+  const vehicleLine =
+    requestVehicleLine(live) ??
+    (vehicle ? `${vehicleTitle(vehicle)} · ${vehicle.year}` : null);
+  const estimate =
+    requestEstimateLabel(live) ??
+    (option ? formatEstimatedPrice(option) : '—');
+  const when = live?.completed_at ?? draft.completedAt;
 
   return (
     <View
@@ -103,14 +134,12 @@ export default function BatteryCompletedScreen() {
           <View style={styles.details}>
             <Divider />
 
-            {vehicle ? (
+            {vehicleLine ? (
               <View style={styles.block}>
                 <AppText variant="caption" color="textMuted">
                   Your vehicle
                 </AppText>
-                <AppText variant="bodyMedium">
-                  {vehicleTitle(vehicle)} · {vehicle.year}
-                </AppText>
+                <AppText variant="bodyMedium">{vehicleLine}</AppText>
               </View>
             ) : null}
 
@@ -118,16 +147,16 @@ export default function BatteryCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Specialist
               </AppText>
-              <AppText variant="bodyMedium">{mechanic.name}</AppText>
+              <AppText variant="bodyMedium">
+                {mechanic?.name ?? 'Specialist'}
+              </AppText>
             </View>
 
             <View style={styles.block}>
               <AppText variant="caption" color="textMuted">
                 Estimated price
               </AppText>
-              <AppText variant="bodyMedium">
-                {option ? formatEstimatedPrice(option) : '—'}
-              </AppText>
+              <AppText variant="bodyMedium">{estimate}</AppText>
               <AppText variant="caption" color="textMuted">
                 Price is an estimate
               </AppText>
@@ -137,9 +166,7 @@ export default function BatteryCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Date / time
               </AppText>
-              <AppText variant="bodyMedium">
-                {formatWhen(draft.completedAt)}
-              </AppText>
+              <AppText variant="bodyMedium">{formatWhen(when)}</AppText>
             </View>
           </View>
         </Reveal>

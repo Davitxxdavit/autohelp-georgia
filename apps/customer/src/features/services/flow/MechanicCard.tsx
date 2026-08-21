@@ -6,7 +6,7 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
-import type { MockMechanic } from './types';
+import type { MechanicIdentity } from './types';
 
 export function MechanicCard({
   mechanic,
@@ -14,13 +14,18 @@ export function MechanicCard({
   footer,
   variant = 'compact',
 }: {
-  mechanic: MockMechanic;
+  mechanic: MechanicIdentity;
   etaLabel?: string;
   footer?: string;
   /** `identity` is the Found-screen hero. Tracking keeps `compact`. */
   variant?: 'compact' | 'identity';
 }) {
   const initial = mechanic.name.slice(0, 1);
+  const rating = Number.isFinite(mechanic.rating)
+    ? mechanic.rating.toFixed(1)
+    : '—';
+  const distanceBit =
+    mechanic.distanceKm != null ? `  ·  ${mechanic.distanceKm} km` : '';
 
   if (variant === 'identity') {
     return (
@@ -35,8 +40,8 @@ export function MechanicCard({
           <StatusBadge label="Verified" tone="success" />
         ) : null}
         <AppText variant="caption" color="textSecondary">
-          ★ {mechanic.rating.toFixed(1)}
-          {`  ·  ${mechanic.distanceKm} km`}
+          ★ {rating}
+          {distanceBit}
         </AppText>
       </View>
     );
@@ -55,7 +60,7 @@ export function MechanicCard({
           ) : null}
         </View>
         <AppText variant="caption" color="textSecondary">
-          ⭐ {mechanic.rating.toFixed(1)}
+          ⭐ {rating}
           {etaLabel ? `  ·  ${etaLabel}` : ''}
         </AppText>
         {footer ? (

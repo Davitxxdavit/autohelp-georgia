@@ -15,7 +15,7 @@ import { FormField } from '@/features/vehicles/components/FormField';
 import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { StarRow } from '@/features/services/battery/components/StarRow';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { MOCK_MECHANIC } from '@/features/services/battery/mock';
+import { assignedMechanicIdentity } from '@/features/services/flow/requestFlow';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -67,14 +67,15 @@ function AspectRow({
 export default function BatteryRatingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setRating, reset } = useBatteryFlow();
+  const { draft, setRating, reset } = useBatteryFlow();
   const [overall, setOverall] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [price, setPrice] = useState(0);
   const [quality, setQuality] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const mechanic = MOCK_MECHANIC;
+  const mechanicName =
+    assignedMechanicIdentity(draft.liveRequest)?.name ?? 'your specialist';
 
   if (submitted) {
     return (
@@ -153,7 +154,7 @@ export default function BatteryRatingScreen() {
               How was your experience?
             </AppText>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              How was {mechanic.name}?
+              How was {mechanicName}?
             </AppText>
           </View>
         </Reveal>

@@ -18,6 +18,7 @@ export const MOCK_SPECIALIST_POINT: MockGeoPoint = {
   longitude: 41.6452,
 };
 
+/** Historic mock delay. Request progression now polls Django status. */
 export const SEARCH_DELAY_MS = 2400;
 
 /**

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,14 @@ import { AppText } from '@/components/ui/AppText';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { SearchingVisual } from '@/features/services/battery/components/SearchingVisual';
 import { useBatteryBottomPad } from '@/features/services/battery/components/BatteryScreenScaffold';
-import { SEARCH_DELAY_MS } from '@/features/services/battery/mock';
+import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
+import {
+  RequestMissingState,
+  RequestPollHint,
+} from '@/features/services/flow/RequestSyncNotice';
+import { BATTERY_FLOW_ROUTES } from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -74,13 +81,40 @@ export default function BatterySearchingScreen() {
   const bottomPad = useBatteryBottomPad();
   const router = useRouter();
   const reducedMotion = !!useReducedMotion();
+  const { draft, setLiveRequest, markCompleted } = useBatteryFlow();
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      router.replace('/battery/found');
-    }, SEARCH_DELAY_MS);
-    return () => clearTimeout(id);
-  }, [router]);
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { notFound, pollError } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'searching',
+    routes: BATTERY_FLOW_ROUTES,
+    onRequest,
+  });
+
+  if (notFound) {
+    return (
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: insets.top + spacing['2xl'],
+            paddingBottom: bottomPad,
+          },
+        ]}
+      >
+        <RequestMissingState
+          onHome={() => router.replace('/(app)/(tabs)')}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -112,6 +146,7 @@ export default function BatterySearchingScreen() {
             <AppText variant="caption" color="textMuted" style={styles.center}>
               Usually takes less than a minute
             </AppText>
+            <RequestPollHint pollError={pollError} />
           </View>
         </View>
       </FadeIn>

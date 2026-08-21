@@ -29,6 +29,7 @@ export {
   setTokenPair,
 } from './tokens';
 export type {
+  ApiAssignedMechanic,
   ApiRequestStatus,
   ApiService,
   ApiServiceProblem,
@@ -37,6 +38,21 @@ export type {
   CreateServiceRequestBody,
   TokenPair,
 } from './types';
+export {
+  ACTIVE_REQUEST_STATUSES,
+  HISTORY_REQUEST_STATUSES,
+  REQUEST_STATUS_LABELS,
+  SERVICE_CODE_LABELS,
+  formatRequestEstimate,
+  formatRequestTime,
+  isActiveRequestStatus,
+  isApiRequestStatus,
+  isHistoryRequestStatus,
+  isTerminalRequestStatus,
+  requestStatusLabel,
+  requestStatusTone,
+  serviceCodeLabel,
+} from './status';
 export {
   createVehicle,
   deleteVehicle,

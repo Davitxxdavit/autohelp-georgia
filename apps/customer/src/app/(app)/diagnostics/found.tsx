@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,14 +10,25 @@ import { Divider } from '@/components/ui/Divider';
 import { MechanicCard } from '@/features/services/flow/MechanicCard';
 import { Reveal } from '@/features/services/flow/Reveal';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
+import {
+  RequestMissingState,
+  RequestPollHint,
+} from '@/features/services/flow/RequestSyncNotice';
+import {
+  DIAGNOSTICS_FLOW_ROUTES,
+  assignedMechanicIdentity,
+  requestEstimateLabel,
+  requestVehicleLine,
+} from '@/features/services/flow/requestFlow';
+import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { useDiagnosticsFlow } from '@/features/services/diagnostics/DiagnosticsFlowProvider';
 import {
   formatEstimatedPrice,
   getDiagnosticsOption,
-  MOCK_SPECIALIST,
 } from '@/features/services/diagnostics/mock';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -24,27 +36,69 @@ import { spacing } from '@/theme/spacing';
 export default function DiagnosticsFoundScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, reset } = useDiagnosticsFlow();
+  const { draft, reset, setLiveRequest, markCompleted } = useDiagnosticsFlow();
   const { getById } = useVehicles();
   const option = draft.optionId
     ? getDiagnosticsOption(draft.optionId)
     : undefined;
   const vehicle = draft.vehicleId ? getById(draft.vehicleId) : undefined;
-  const specialist = MOCK_SPECIALIST;
+
+  const onRequest = useCallback(
+    (req: ApiServiceRequest) => {
+      setLiveRequest(req);
+      if (req.status === 'COMPLETED') markCompleted(req.completed_at);
+    },
+    [markCompleted, setLiveRequest],
+  );
+
+  const { request, notFound, pollError } = useRequestFlowSync({
+    requestId: draft.serviceRequestId,
+    currentPhase: 'found',
+    routes: DIAGNOSTICS_FLOW_ROUTES,
+    onRequest,
+  });
+
+  const live = request ?? draft.liveRequest;
+  const specialist = assignedMechanicIdentity(live);
+  const vehicleLine =
+    requestVehicleLine(live) ??
+    (vehicle ? `${vehicleTitle(vehicle)} · ${vehicle.year}` : null);
+  const estimate =
+    requestEstimateLabel(live) ??
+    (option ? formatEstimatedPrice(option) : '—');
 
   const onCancel = () => {
-    Alert.alert('Cancel request?', 'This mock request will be closed.', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel request',
-        style: 'destructive',
-        onPress: () => {
-          reset();
-          router.replace('/(app)/(tabs)');
+    Alert.alert(
+      'Leave request?',
+      'You can still find this request in Orders.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            reset();
+            router.replace('/(app)/(tabs)');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
+
+  if (notFound) {
+    return (
+      <View
+        style={[
+          styles.screen,
+          { paddingTop: insets.top + spacing['2xl'] },
+        ]}
+      >
+        <RequestMissingState
+          onHome={() => router.replace('/(app)/(tabs)' as Href)}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -82,17 +136,24 @@ export default function DiagnosticsFoundScreen() {
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
-          <MechanicCard mechanic={specialist} variant="identity" />
+          {specialist ? (
+            <MechanicCard mechanic={specialist} variant="identity" />
+          ) : (
+            <AppText variant="body" color="textSecondary" style={styles.center}>
+              Specialist assigned
+            </AppText>
+          )}
         </Reveal>
 
         <Reveal delayMs={timing.normal}>
           <View style={styles.eta}>
             <AppText variant="caption" color="textMuted" style={styles.center}>
-              Arriving in
+              Status
             </AppText>
             <AppText variant="h2" style={styles.center}>
-              ~{specialist.etaMinutes} min
+              Specialist found
             </AppText>
+            <RequestPollHint pollError={pollError} />
           </View>
         </Reveal>
 
@@ -106,14 +167,12 @@ export default function DiagnosticsFoundScreen() {
               </AppText>
             ) : null}
 
-            {vehicle ? (
+            {vehicleLine ? (
               <View style={styles.block}>
                 <AppText variant="caption" color="textMuted">
                   Your vehicle
                 </AppText>
-                <AppText variant="bodyMedium">
-                  {vehicleTitle(vehicle)} · {vehicle.year}
-                </AppText>
+                <AppText variant="bodyMedium">{vehicleLine}</AppText>
               </View>
             ) : null}
 
@@ -121,9 +180,7 @@ export default function DiagnosticsFoundScreen() {
               <AppText variant="caption" color="textMuted">
                 Estimated price
               </AppText>
-              <AppText variant="bodyMedium">
-                {option ? formatEstimatedPrice(option) : '—'}
-              </AppText>
+              <AppText variant="bodyMedium">{estimate}</AppText>
               <AppText variant="caption" color="textMuted">
                 Price is an estimate
               </AppText>

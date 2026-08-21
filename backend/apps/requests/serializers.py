@@ -12,6 +12,15 @@ from apps.vehicles.models import Vehicle
 from apps.vehicles.serializers import VehicleSerializer
 
 
+class AssignedMechanicPublicSerializer(serializers.Serializer):
+    """Safe public mechanic identity for customers. No phone or email."""
+
+    id = serializers.UUIDField()
+    first_name = serializers.CharField()
+    verified = serializers.BooleanField()
+    rating_average = serializers.DecimalField(max_digits=3, decimal_places=2)
+
+
 class StatusHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequestStatusHistory
@@ -23,6 +32,11 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     vehicle = VehicleSerializer(read_only=True)
     service_code = serializers.CharField(source="service.code", read_only=True)
     problem_code = serializers.CharField(source="problem.code", read_only=True)
+    assigned_mechanic = AssignedMechanicPublicSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text="Assigned mechanic public profile, or null. Phone is never included.",
+    )
     status_history = StatusHistorySerializer(many=True, read_only=True)
 
     class Meta:

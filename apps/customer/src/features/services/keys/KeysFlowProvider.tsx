@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import type { ApiServiceRequest } from '@/lib/api/types';
 import { MOCK_BATUMI_LOCATION } from '@/features/services/flow/location';
 import type { MockLocation } from '@/features/services/flow/types';
 
@@ -30,6 +31,7 @@ function createEmptyDraft(): KeysDraft {
     serviceRequestId: null,
     backendEstimatedPriceAmount: null,
     backendEstimatedPriceCurrency: null,
+    liveRequest: null,
   };
 }
 
@@ -48,7 +50,8 @@ type KeysFlowContextValue = {
   setDetails: (value: string) => void;
   setLocation: (location: MockLocation) => void;
   markRequested: (created?: KeysRequestCreated) => void;
-  markCompleted: () => void;
+  markCompleted: (completedAt?: string | null) => void;
+  setLiveRequest: (request: ApiServiceRequest) => void;
   setRating: (rating: KeysRating) => void;
   reset: () => void;
 };
@@ -88,13 +91,18 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const markCompleted = useCallback(() => {
+  const markCompleted = useCallback((completedAt?: string | null) => {
     setDraft((prev) =>
       persistDraft({
         ...prev,
-        completedAt: prev.completedAt ?? new Date().toISOString(),
+        completedAt:
+          prev.completedAt ?? completedAt ?? new Date().toISOString(),
       }),
     );
+  }, []);
+
+  const setLiveRequest = useCallback((liveRequest: ApiServiceRequest) => {
+    setDraft((prev) => persistDraft({ ...prev, liveRequest }));
   }, []);
 
   const setRating = useCallback((rating: KeysRating) => {
@@ -114,6 +122,7 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     }),
@@ -125,6 +134,7 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
       setLocation,
       markRequested,
       markCompleted,
+      setLiveRequest,
       setRating,
       reset,
     ],
