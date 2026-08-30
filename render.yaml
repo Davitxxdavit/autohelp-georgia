@@ -2,17 +2,19 @@
 # Customer and Mechanic Expo apps are not deployed here.
 #
 # Apply from the Render dashboard (Blueprint) against this GitHub repo.
-# Choose a paid Postgres plan in the dashboard if the YAML plan is unavailable
-# on your account.
+# If `plan: free` is rejected for Postgres on your account, pick an available
+# plan in the dashboard and keep the rest of this file.
 
 databases:
   - name: autohelp-db
+    plan: free
     databaseName: autohelp
     user: autohelp
 
 services:
   - type: web
     name: autohelp-api
+    plan: free
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements/production.txt && python manage.py collectstatic --noinput

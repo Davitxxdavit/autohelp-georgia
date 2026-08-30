@@ -250,16 +250,16 @@ The Render Blueprint (`render.yaml` at the repo root) expects this GitHub reposi
 
 ### 2. PostgreSQL
 
-Blueprint creates `autohelp-db` (`autohelp` / `autohelp`). You can also create PostgreSQL manually in the Render dashboard and copy the **internal** connection string into `DATABASE_URL`.
+Blueprint creates `autohelp-db` (`autohelp` / `autohelp`) on `plan: free`. You can also create PostgreSQL manually in the Render dashboard and copy the **internal** connection string into `DATABASE_URL`.
 
-Pick a plan your account allows. Render no longer offers free Postgres.
+If Render rejects the free database plan on your account, choose an available plan in the dashboard and leave the rest of the Blueprint as-is.
 
 ### 3. Web service or Blueprint
 
 **Blueprint (preferred):** Dashboard → New → Blueprint → this repo. Services:
 
-- `autohelp-api` (Python, `rootDir: backend`)
-- `autohelp-db` (PostgreSQL)
+- `autohelp-api` (Python, `plan: free`, `rootDir: backend`)
+- `autohelp-db` (PostgreSQL, `plan: free`)
 
 **Manual web service:**
 
