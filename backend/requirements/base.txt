@@ -6,4 +6,5 @@ django-filter>=24.3,<26
 psycopg[binary]>=3.2,<4
 python-dotenv>=1.0,<2
 gunicorn>=23,<24
+whitenoise>=6.8,<7
 drf-spectacular>=0.28,<0.30

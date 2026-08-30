@@ -6,6 +6,8 @@ import os
 
 from dotenv import load_dotenv
 
+from config.database import database_config_from_env
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
@@ -38,6 +40,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
+    "apps.common",
     "apps.accounts",
     "apps.vehicles",
     "apps.services",
@@ -77,16 +80,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "autohelp"),
-        "USER": os.getenv("POSTGRES_USER", "autohelp"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "autohelp"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        "OPTIONS": {"connect_timeout": 5},
-        "CONN_MAX_AGE": 0,
-    }
+    "default": database_config_from_env(),
 }
 
 AUTH_USER_MODEL = "accounts.User"
@@ -141,6 +135,10 @@ CORS_ALLOWED_ORIGINS = env_list(
     "http://localhost:8081,http://localhost:8082,http://localhost:19006",
 )
 CORS_ALLOW_ALL_ORIGINS = False
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+
+# Development default: on. Production settings override to env-only (off unless set).
+ENABLE_API_DOCS = env_bool("ENABLE_API_DOCS", DEBUG)
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "AutoHelp API",
@@ -151,7 +149,7 @@ SPECTACULAR_SETTINGS = {
         "Production authentication will move to phone OTP.\n\n"
         "ServiceRequest estimates are catalog values, not guaranteed payouts. "
         "Auto Key `estimated_price_amount` is null (never 0).\n\n"
-        "OpenAPI docs are public in development. Restrict or disable Swagger in production later."
+        "OpenAPI docs are enabled when ENABLE_API_DOCS is true (default on in development)."
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

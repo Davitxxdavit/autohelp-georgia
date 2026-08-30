@@ -1,0 +1,46 @@
+# Render Blueprint — API + PostgreSQL only.
+# Customer and Mechanic Expo apps are not deployed here.
+#
+# Apply from the Render dashboard (Blueprint) against this GitHub repo.
+# Choose a paid Postgres plan in the dashboard if the YAML plan is unavailable
+# on your account.
+
+databases:
+  - name: autohelp-db
+    databaseName: autohelp
+    user: autohelp
+
+services:
+  - type: web
+    name: autohelp-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements/production.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60 --access-logfile - --error-logfile -
+    healthCheckPath: /health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: autohelp-db
+          property: connectionString
+      # RENDER_EXTERNAL_HOSTNAME is injected by Render and merged into
+      # ALLOWED_HOSTS / CSRF_TRUSTED_ORIGINS. Set these for custom domains:
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: ""
+      - key: ENABLE_API_DOCS
+        value: "true"
+      - key: JWT_ACCESS_MINUTES
+        value: "60"
+      - key: JWT_REFRESH_DAYS
+        value: "7"

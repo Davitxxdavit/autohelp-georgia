@@ -41,6 +41,12 @@ Admin:
 http://127.0.0.1:8000/admin/
 ```
 
+Health (public liveness, no auth):
+
+```
+http://127.0.0.1:8000/health/
+```
+
 ## API docs (Swagger / ReDoc)
 
 ```
@@ -57,7 +63,7 @@ JWT in Swagger:
 4. Enter `Bearer <access>` or the token alone, depending on the Swagger prompt (scheme is HTTP Bearer).
 5. Call authenticated endpoints such as `GET /api/v1/vehicles/`.
 
-Docs are public in development. Restrict or disable Swagger in production later (`SPECTACULAR_SETTINGS` / view permissions). Do not treat password JWT as production auth.
+Docs are public in development (`ENABLE_API_DOCS` defaults on when `DEBUG` is true). On Render, set `ENABLE_API_DOCS=true` for staging and `false` for a public production API. Do not treat password JWT as production auth.
 
 ## Docker workflow (PowerShell)
 
@@ -155,6 +161,7 @@ This is **not** the production OTP login.
 
 | Method | Path | Notes |
 |--------|------|--------|
+| GET | `/health/` | public liveness `{"status": "ok"}` |
 | POST | `/api/v1/auth/token/` | phone + password (dev) |
 | POST | `/api/v1/auth/token/refresh/` | refresh JWT |
 | GET | `/api/v1/services/` | public catalog + problems |
@@ -213,8 +220,156 @@ Production tracking later: Google Maps + device location + these backend coordin
 
 Set `DJANGO_SETTINGS_MODULE=config.settings.production`.
 
-`DEBUG` is forced off. `SECRET_KEY` and `ALLOWED_HOSTS` are required. CORS wildcard is not enabled.
+`DEBUG` is forced off. `SECRET_KEY` is required and must not be the development placeholder.
 
-OpenAPI/Swagger is currently public. Before production traffic, restrict `/api/docs/`, `/api/redoc/`, and `/api/schema/` (for example staff-only) or disable them.
+`ALLOWED_HOSTS` comes from a comma-separated env var. Render also injects `RENDER_EXTERNAL_HOSTNAME`; production settings merge that hostname automatically.
 
-Run with gunicorn when you add a production Compose/host (not in this phase).
+`DATABASE_URL` is required on Render (`postgres://` or `postgresql://`). Local Docker does **not** use `DATABASE_URL`; compose keeps `POSTGRES_HOST=db` and the discrete `POSTGRES_*` variables.
+
+Hosted process: Gunicorn (`gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`). Do not use `runserver` on Render. `$PORT` is supplied by Render — do not hardcode `8000`.
+
+Static files: WhiteNoise + `collectstatic` during the Render build. No S3 in this milestone.
+
+CORS stays env-driven. `CORS_ALLOW_ALL_ORIGINS` is never enabled in production. Native Customer/Mechanic apps do not need browser CORS; leave `CORS_ALLOWED_ORIGINS` empty until a web Admin exists.
+
+CSRF is not disabled. Set `CSRF_TRUSTED_ORIGINS` (https origins) for Django Admin on the hosted domain, or rely on the automatic `https://$RENDER_EXTERNAL_HOSTNAME` entry.
+
+OpenAPI is gated by `ENABLE_API_DOCS`. Staging can set `true`; later production should set `false`.
+
+Never commit real secrets. Never run `seed_dev` against the hosted database (`seed_dev` is DEBUG-only and would copy local test users).
+
+## RENDER DEPLOYMENT
+
+This is a monorepo. Only `backend/` is deployed. Do **not** create Render web services for the Customer or Mechanic Expo apps.
+
+Hosted data starts empty plus **migrations** (the service catalog is a data migration). Do not copy the local Docker volume to Render. Do not run `seed_dev --with-request` on staging unless you later choose to do that on purpose.
+
+### 1. Push the project to GitHub
+
+The Render Blueprint (`render.yaml` at the repo root) expects this GitHub repository.
+
+### 2. PostgreSQL
+
+Blueprint creates `autohelp-db` (`autohelp` / `autohelp`). You can also create PostgreSQL manually in the Render dashboard and copy the **internal** connection string into `DATABASE_URL`.
+
+Pick a plan your account allows. Render no longer offers free Postgres.
+
+### 3. Web service or Blueprint
+
+**Blueprint (preferred):** Dashboard → New → Blueprint → this repo. Services:
+
+- `autohelp-api` (Python, `rootDir: backend`)
+- `autohelp-db` (PostgreSQL)
+
+**Manual web service:**
+
+- Environment: Python
+- Region: same as the database
+- Root directory: `backend`
+- Build command: `pip install -r requirements/production.txt && python manage.py collectstatic --noinput`
+- Start command: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60 --access-logfile - --error-logfile -`
+- Health check path: `/health/`
+
+Do not point Render at `backend/Dockerfile`. That image is for **local Docker development** (`runserver`). Hosted staging uses the native Python runtime + Gunicorn.
+
+### 4. Root directory / backend path
+
+Root Directory must be `backend` so `config.wsgi`, `requirements/`, and `manage.py` resolve.
+
+### 5. Environment variables
+
+| Variable | Hosted value |
+|----------|----------------|
+| `DJANGO_SETTINGS_MODULE` | `config.settings.production` |
+| `SECRET_KEY` | long random (Blueprint can generate) |
+| `DATABASE_URL` | from the Render Postgres instance |
+| `ALLOWED_HOSTS` | `your-service.onrender.com` (optional if `RENDER_EXTERNAL_HOSTNAME` is set; required for a custom domain) |
+| `CSRF_TRUSTED_ORIGINS` | `https://your-service.onrender.com` (optional if `RENDER_EXTERNAL_HOSTNAME` is set) |
+| `CORS_ALLOWED_ORIGINS` | empty unless a browser origin must call the API |
+| `ENABLE_API_DOCS` | `true` on staging, `false` later in production |
+| `JWT_ACCESS_MINUTES` | `60` |
+| `JWT_REFRESH_DAYS` | `7` |
+
+`RENDER_EXTERNAL_HOSTNAME` is set by Render. Do not put real passwords, JWT tokens, or the production `SECRET_KEY` in git.
+
+### 6. Deploy
+
+Trigger the first deploy from Blueprint or **Manual Deploy**. The build runs `collectstatic`. Gunicorn binds to `$PORT`.
+
+### 7. Run migrations
+
+Blueprint sets `preDeployCommand: python manage.py migrate --noinput` so migrate runs **once per deploy**, not inside each Gunicorn worker.
+
+If your plan does not support pre-deploy commands, run once from Render Shell (do not add `migrate` to the start command):
+
+```text
+python manage.py migrate --noinput
+```
+
+That applies schema **and** the catalog data migration (`BATTERY`, `DIAGNOSTICS`, `AUTO_KEY`). It does not create test users.
+
+### 8. Create a superuser
+
+From Render Shell (no hardcoded admin password):
+
+```text
+python manage.py createsuperuser
+```
+
+Use an E.164 phone (example `+995555000099`) and a password you choose. The account role is ADMIN.
+
+### 9. Check `/health/`
+
+```text
+GET https://<render-host>/health/
+```
+
+Expect HTTP 200 and `{"status": "ok"}`.
+
+### 10. Check Swagger if enabled
+
+If `ENABLE_API_DOCS=true`:
+
+```text
+https://<render-host>/api/docs/
+https://<render-host>/api/redoc/
+https://<render-host>/api/schema/
+```
+
+If `ENABLE_API_DOCS=false`, those paths are not routed.
+
+### 11–12. Point the mobile apps at the hosted API
+
+Do not hardcode the Render URL in source. In each app `.env`:
+
+```text
+EXPO_PUBLIC_API_URL=https://<render-host>/api/v1
+```
+
+- Customer: `apps/customer/.env`
+- Mechanic: `apps/mechanic/.env`
+
+Local Android Emulator remains `http://10.0.2.2:8000/api/v1`. Physical phone on LAN remains `http://<PC-LAN-IP>:8000/api/v1`.
+
+Hosted staging has **no** `seed_dev` users unless you create them yourself. Password JWT is still a development foundation.
+
+### 13. Restart Expo apps
+
+Stop Metro and run `pnpm start` again in `apps/customer` and `apps/mechanic` so `EXPO_PUBLIC_API_URL` is picked up.
+
+### Return to local Docker development
+
+```powershell
+cd c:\Users\User\Desktop\autohelp\backend
+docker compose up -d
+```
+
+Leave `DATABASE_URL` unset (compose clears it). Use `DJANGO_SETTINGS_MODULE=config.settings.development` (compose sets this). API: `http://127.0.0.1:8000`. Swagger: `http://127.0.0.1:8000/api/docs/`. Admin: `http://127.0.0.1:8000/admin/`.
+
+Stop with `docker compose down`. **Never** run `docker compose down -v` — that deletes the local Postgres volume.
+
+After pulling dependency changes (for example WhiteNoise), rebuild without wiping volumes:
+
+```powershell
+docker compose up -d --build
+```

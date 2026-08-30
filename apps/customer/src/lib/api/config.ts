@@ -6,6 +6,7 @@
  * Windows host:      http://127.0.0.1:8000/api/v1
  * Physical device:   http://<LAN-IP>:8000/api/v1
  * iOS Simulator:     http://127.0.0.1:8000/api/v1
+ * Hosted staging:    https://<render-host>/api/v1
  */
 export function getApiBaseUrl(): string {
   const raw = process.env.EXPO_PUBLIC_API_URL?.trim() ?? '';

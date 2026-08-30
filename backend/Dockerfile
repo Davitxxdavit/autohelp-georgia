@@ -1,5 +1,8 @@
 FROM python:3.12-slim-bookworm
 
+# Local Docker development image. Render does not use this file; hosted
+# staging runs Gunicorn via render.yaml (rootDir: backend).
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 

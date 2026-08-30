@@ -23,6 +23,8 @@ services:
     environment:
       POSTGRES_HOST: db
       DJANGO_SETTINGS_MODULE: config.settings.development
+      # Keep local Docker on POSTGRES_* even if DATABASE_URL is in .env.
+      DATABASE_URL: ""
     ports:
       - "8000:8000"
     volumes:
