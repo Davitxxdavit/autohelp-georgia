@@ -6,6 +6,7 @@
 set -euo pipefail
 
 python manage.py migrate --noinput
+python manage.py ensure_staging_users
 
 exec gunicorn config.wsgi:application \
   --bind "0.0.0.0:${PORT}" \

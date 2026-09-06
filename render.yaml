@@ -47,3 +47,29 @@ services:
         value: "60"
       - key: JWT_REFRESH_DAYS
         value: "7"
+      # Staging accounts. Set true in the dashboard, then fill the credential
+      # variables there. Values must not live in this file.
+      - key: CREATE_STAGING_USERS
+        sync: false
+      - key: STAGING_ADMIN_PHONE
+        sync: false
+      - key: STAGING_ADMIN_EMAIL
+        sync: false
+      - key: STAGING_ADMIN_PASSWORD
+        sync: false
+      - key: STAGING_CUSTOMER_PHONE
+        sync: false
+      - key: STAGING_CUSTOMER_EMAIL
+        sync: false
+      - key: STAGING_CUSTOMER_PASSWORD
+        sync: false
+      - key: STAGING_CUSTOMER_FIRST_NAME
+        sync: false
+      - key: STAGING_MECHANIC_PHONE
+        sync: false
+      - key: STAGING_MECHANIC_EMAIL
+        sync: false
+      - key: STAGING_MECHANIC_PASSWORD
+        sync: false
+      - key: STAGING_MECHANIC_FIRST_NAME
+        sync: false
