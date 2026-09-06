@@ -17,11 +17,10 @@ services:
     plan: free
     runtime: python
     rootDir: backend
-    # Free web services do not support preDeployCommand. After the first
-    # deploy, run from Render Shell: python manage.py migrate --noinput
-    # Do not add migrate to the Gunicorn start command.
+    # Free web services do not support preDeployCommand. The start script
+    # runs migrate --noinput, then execs Gunicorn. Do not add seed_dev.
     buildCommand: pip install -r requirements/production.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60 --access-logfile - --error-logfile -
+    startCommand: bash scripts/render_start.sh
     healthCheckPath: /health/
     envVars:
       - key: PYTHON_VERSION
