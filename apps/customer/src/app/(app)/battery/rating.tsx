@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -16,6 +16,8 @@ import { BatteryScreenScaffold } from '@/features/services/battery/components/Ba
 import { StarRow } from '@/features/services/battery/components/StarRow';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
 import { assignedMechanicIdentity } from '@/features/services/flow/requestFlow';
+import { isApiError } from '@/lib/api/errors';
+import { createRating, isDuplicateRatingError } from '@/lib/api/ratings';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -74,6 +76,7 @@ export default function BatteryRatingScreen() {
   const [quality, setQuality] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
   const mechanicName =
     assignedMechanicIdentity(draft.liveRequest)?.name ?? 'your specialist';
 
@@ -130,17 +133,47 @@ export default function BatteryRatingScreen() {
         contentContainerStyle={styles.content}
         footer={
           <PrimaryButton
-            label="Submit rating"
-            disabled={overall === 0}
+            label={busy ? 'Submitting…' : 'Submit rating'}
+            disabled={overall === 0 || busy}
             onPress={() => {
-              setRating({
-                overall,
-                speed,
-                price,
-                quality,
-                comment,
-              });
-              setSubmitted(true);
+              if (!draft.serviceRequestId || busy) {
+                Alert.alert(
+                  'Couldn’t submit rating',
+                  'This request is missing. Go back to Home and try again.',
+                );
+                return;
+              }
+              setBusy(true);
+              void (async () => {
+                try {
+                  await createRating({
+                    request: draft.serviceRequestId!,
+                    stars: overall,
+                    feedback: comment,
+                  });
+                  setRating({
+                    overall,
+                    speed,
+                    price,
+                    quality,
+                    comment,
+                  });
+                  setSubmitted(true);
+                } catch (error) {
+                  if (isDuplicateRatingError(error)) {
+                    setSubmitted(true);
+                    return;
+                  }
+                  Alert.alert(
+                    'Couldn’t submit rating',
+                    isApiError(error)
+                      ? error.message
+                      : 'Check your connection and try again.',
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })();
             }}
           />
         }

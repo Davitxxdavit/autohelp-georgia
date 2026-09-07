@@ -1,7 +1,7 @@
 /**
  * API base URL via EXPO_PUBLIC_API_URL only.
  * Android Emulator: http://10.0.2.2:8000/api/v1
- * Hosted staging: https://<render-host>/api/v1
+ * Hosted staging: https://autohelp-api.onrender.com/api/v1
  */
 export function getApiBaseUrl(): string {
   const raw = process.env.EXPO_PUBLIC_API_URL?.trim() ?? '';

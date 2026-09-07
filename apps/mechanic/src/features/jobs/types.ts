@@ -60,3 +60,11 @@ export const JOB_STATUS_TRANSITIONS: Partial<Record<JobStatus, JobStatus>> = {
   ARRIVED: 'IN_PROGRESS',
   IN_PROGRESS: 'COMPLETED',
 };
+
+export const OPERATIONAL_JOB_STATUSES: readonly JobStatus[] = [
+  'ASSIGNED',
+  'ACCEPTED',
+  'ON_THE_WAY',
+  'ARRIVED',
+  'IN_PROGRESS',
+];

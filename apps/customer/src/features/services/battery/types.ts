@@ -47,7 +47,7 @@ export type BatteryDraft = {
   vehicleId: string | null;
   problemId: BatteryProblemId | null;
   details: string;
-  location: MockLocation;
+  location: MockLocation | null;
   requestedAt: string | null;
   completedAt: string | null;
   rating: BatteryRating | null;

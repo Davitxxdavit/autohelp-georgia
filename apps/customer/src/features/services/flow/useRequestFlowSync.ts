@@ -23,6 +23,7 @@ export function useRequestFlowSync(args: {
   currentPhase: CustomerRequestPhase;
   routes: RequestFlowRoutes;
   onRequest?: (request: ApiServiceRequest) => void;
+  onCancelled?: () => void;
 }): {
   request: ApiServiceRequest | null;
   notFound: boolean;
@@ -36,12 +37,17 @@ export function useRequestFlowSync(args: {
   const inFlightRef = useRef(false);
   const onRequestRef = useRef(args.onRequest);
   onRequestRef.current = args.onRequest;
+  const onCancelledRef = useRef(args.onCancelled);
+  onCancelledRef.current = args.onCancelled;
 
   useFocusEffect(
     useCallback(() => {
       if (!requestId) {
-        setNotFound(true);
-        return;
+        // Summary may still be committing the backend ID. Do not 404 instantly.
+        const wait = setTimeout(() => {
+          setNotFound(true);
+        }, 800);
+        return () => clearTimeout(wait);
       }
 
       setNotFound(false);
@@ -101,6 +107,7 @@ export function useRequestFlowSync(args: {
     const target = customerPhaseForStatus(request.status);
     if (!shouldNavigatePhase(currentPhase, target)) return;
     if (target === 'cancelled') {
+      onCancelledRef.current?.();
       router.replace(routes.home);
       return;
     }

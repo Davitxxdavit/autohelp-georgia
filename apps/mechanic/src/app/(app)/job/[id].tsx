@@ -69,8 +69,9 @@ export default function JobDetailsScreen() {
       if (!next) {
         Alert.alert(
           'Couldn’t accept',
-          'This request may already be claimed. Pull Home to refresh.',
+          'This request may already be claimed, or the offer is no longer valid.',
         );
+        router.replace('/(app)/(tabs)');
         return;
       }
       router.replace(getActiveJobRoute(next.status));

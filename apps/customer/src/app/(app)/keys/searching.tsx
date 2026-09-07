@@ -81,7 +81,7 @@ export default function KeysSearchingScreen() {
   const bottomPad = useServiceBottomPad();
   const router = useRouter();
   const reducedMotion = !!useReducedMotion();
-  const { draft, setLiveRequest, markCompleted } = useKeysFlow();
+  const { draft, setLiveRequest, markCompleted, reset } = useKeysFlow();
 
   const onRequest = useCallback(
     (req: ApiServiceRequest) => {
@@ -96,6 +96,7 @@ export default function KeysSearchingScreen() {
     currentPhase: 'searching',
     routes: KEYS_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   if (notFound) {

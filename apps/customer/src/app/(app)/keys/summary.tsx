@@ -14,6 +14,7 @@ import {
   getKeysProblem,
   PRICE_CONFIRM_LATER,
 } from '@/features/services/keys/mock';
+import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import { isApiError } from '@/lib/api/errors';
@@ -41,10 +42,21 @@ export default function KeysSummaryScreen() {
   const problem = draft.problemId ? getKeysProblem(draft.problemId) : undefined;
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && problem) && !submitting;
+  const canSubmit =
+    Boolean(vehicle && problem) &&
+    isUsableDeviceLocation(draft.location) &&
+    !submitting;
 
   const onRequestAssistance = async () => {
-    if (!vehicle || !problem || !draft.problemId || submitting) return;
+    if (
+      !vehicle ||
+      !problem ||
+      !draft.problemId ||
+      !isUsableDeviceLocation(draft.location) ||
+      submitting
+    ) {
+      return;
+    }
     setSubmitting(true);
     try {
       const created = await createRoadsideRequest({
@@ -111,7 +123,7 @@ export default function KeysSummaryScreen() {
             <Divider />
             <Row label="Problem" value={problem?.title ?? '—'} />
             <Divider />
-            <Row label="Location" value={draft.location.label} />
+            <Row label="Location" value={draft.location?.label ?? '—'} />
             <Divider />
             <Row label="Price" value={PRICE_CONFIRM_LATER} />
             {vehicle ? (

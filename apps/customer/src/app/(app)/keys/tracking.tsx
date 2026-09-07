@@ -16,6 +16,7 @@ import {
 import {
   KEYS_FLOW_ROUTES,
   assignedMechanicIdentity,
+  customerPointFromLiveOrDraft,
   trackingStatusCopy,
 } from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
@@ -28,7 +29,7 @@ import { spacing } from '@/theme/spacing';
 export default function KeysTrackingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, setLiveRequest, markCompleted } = useKeysFlow();
+  const { draft, setLiveRequest, markCompleted, reset } = useKeysFlow();
 
   const onRequest = useCallback(
     (req: ApiServiceRequest) => {
@@ -43,6 +44,7 @@ export default function KeysTrackingScreen() {
     currentPhase: 'tracking',
     routes: KEYS_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   const live = request ?? draft.liveRequest;
@@ -84,7 +86,7 @@ export default function KeysTrackingScreen() {
 
         <Reveal delayMs={timing.instant}>
           <TrackingMap
-            userPoint={draft.location.point}
+            userPoint={customerPointFromLiveOrDraft(live, draft.location)}
             mechanicPoint={MOCK_SPECIALIST_POINT}
           />
         </Reveal>

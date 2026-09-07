@@ -22,6 +22,11 @@ export function isValidGeMobile(phone: string): boolean {
   return /^5\d{8}$/.test(phone);
 }
 
+/** Backend JWT expects E.164, e.g. +9955XXXXXXXX. */
+export function toE164GeMobile(localNineDigit: string): string {
+  return `+995${localNineDigit.replace(/\D/g, '')}`;
+}
+
 export function formatDisplayPhone(phone: string, countryCode: string): string {
   return `${countryCode} ${phone}`;
 }

@@ -54,6 +54,7 @@ export default function KeysFoundScreen() {
     currentPhase: 'found',
     routes: KEYS_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   const live = request ?? draft.liveRequest;
@@ -136,7 +137,7 @@ export default function KeysFoundScreen() {
             <MechanicCard mechanic={specialist} variant="identity" />
           ) : (
             <AppText variant="body" color="textSecondary" style={styles.center}>
-              Locksmith assigned
+              Assigned mechanic
             </AppText>
           )}
         </Reveal>

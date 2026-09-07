@@ -118,7 +118,7 @@ export default function KeysCompletedScreen() {
                 Specialist
               </AppText>
               <AppText variant="bodyMedium">
-                {specialist?.name ?? 'Specialist'}
+                {specialist?.name ?? 'Assigned mechanic'}
               </AppText>
             </View>
 

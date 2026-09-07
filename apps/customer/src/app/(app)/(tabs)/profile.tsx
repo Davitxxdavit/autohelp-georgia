@@ -11,7 +11,7 @@ import { spacing } from '@/theme/spacing';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { resetAppStateForDev } = useSession();
+  const { signOut, resetAppStateForDev } = useSession();
 
   const onResetSession = () => {
     Alert.alert(
@@ -44,6 +44,13 @@ export default function ProfileScreen() {
         <AppText variant="caption" color="textMuted">
           პროფილის სრული ფუნქციონალი შემდეგ ეტაპზე განხორციელდება.
         </AppText>
+        <PrimaryButton
+          label="Sign out"
+          onPress={() => {
+            void signOut();
+          }}
+          accessibilityLabel="Sign out"
+        />
       </Surface>
 
       {__DEV__ ? (

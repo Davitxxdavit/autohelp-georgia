@@ -6,12 +6,13 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
-import type { MockLocation } from './types';
+import type { CustomerLocation } from './types';
 
 /**
- * Visual stand-in for a map. Swap for MapView + expo-location later.
+ * Visual stand-in for a map. Not a real map / navigation view.
+ * The pin label uses the captured GPS city or coordinates when available.
  */
-export function MockMap({ location }: { location: MockLocation }) {
+export function MockMap({ location }: { location: CustomerLocation | null }) {
   return (
     <GradientSurface
       colors={[colors.surfaceElevated, colors.background]}
@@ -31,7 +32,7 @@ export function MockMap({ location }: { location: MockLocation }) {
         <View style={styles.pinHalo} />
         <View style={styles.pin} />
         <AppText variant="caption" color="textSecondary" style={styles.pinLabel}>
-          {location.city}
+          {location?.city || '…'}
         </AppText>
       </View>
     </GradientSurface>

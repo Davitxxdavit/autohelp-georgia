@@ -1,1 +1,4 @@
-export { resolveCustomerLocation } from '@/features/services/flow/location';
+export {
+  captureDeviceLocation,
+  isUsableDeviceLocation,
+} from '@/features/services/flow/location';

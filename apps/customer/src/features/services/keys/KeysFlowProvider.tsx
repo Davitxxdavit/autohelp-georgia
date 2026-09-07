@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import type { ApiServiceRequest } from '@/lib/api/types';
-import { MOCK_BATUMI_LOCATION } from '@/features/services/flow/location';
 import type { MockLocation } from '@/features/services/flow/types';
 
 import type { KeysDraft, KeysProblemId, KeysRating } from './types';
@@ -24,7 +23,7 @@ function createEmptyDraft(): KeysDraft {
     vehicleId: null,
     problemId: null,
     details: '',
-    location: MOCK_BATUMI_LOCATION,
+    location: null,
     requestedAt: null,
     completedAt: null,
     rating: null,
@@ -78,17 +77,17 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markRequested = useCallback((created?: KeysRequestCreated) => {
-    setDraft((prev) =>
-      persistDraft({
-        ...prev,
-        requestedAt: prev.requestedAt ?? new Date().toISOString(),
-        serviceRequestId: created?.id ?? prev.serviceRequestId,
-        backendEstimatedPriceAmount:
-          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
-        backendEstimatedPriceCurrency:
-          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
-      }),
-    );
+    const prev = persistedDraft;
+    const next = persistDraft({
+      ...prev,
+      requestedAt: prev.requestedAt ?? new Date().toISOString(),
+      serviceRequestId: created?.id ?? prev.serviceRequestId,
+      backendEstimatedPriceAmount:
+        created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+      backendEstimatedPriceCurrency:
+        created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
+    });
+    setDraft(next);
   }, []);
 
   const markCompleted = useCallback((completedAt?: string | null) => {

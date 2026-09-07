@@ -14,6 +14,7 @@ import {
   getBatteryOption,
   getBatteryProblem,
 } from '@/features/services/battery/mock';
+import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import { createServiceRequest } from '@/lib/api/requests';
@@ -44,10 +45,22 @@ export default function BatterySummaryScreen() {
     : undefined;
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && option && problem) && !submitting;
+  const canSubmit =
+    Boolean(vehicle && option && problem) &&
+    isUsableDeviceLocation(draft.location) &&
+    !submitting;
 
   const onRequestAssistance = async () => {
-    if (!vehicle || !option || !problem || !draft.problemId || submitting) return;
+    if (
+      !vehicle ||
+      !option ||
+      !problem ||
+      !draft.problemId ||
+      !isUsableDeviceLocation(draft.location) ||
+      submitting
+    ) {
+      return;
+    }
     setSubmitting(true);
     try {
       const { service, problem: apiProblem } = await resolveCatalogIds({
@@ -120,7 +133,7 @@ export default function BatterySummaryScreen() {
             <Divider />
             <Row label="Problem" value={problem?.title ?? '—'} />
             <Divider />
-            <Row label="Location" value={draft.location.label} />
+            <Row label="Location" value={draft.location?.label ?? '—'} />
             <Divider />
             <Row label="Service" value={option?.title ?? '—'} />
             <Divider />

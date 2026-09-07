@@ -148,7 +148,7 @@ export default function BatteryCompletedScreen() {
                 Specialist
               </AppText>
               <AppText variant="bodyMedium">
-                {mechanic?.name ?? 'Specialist'}
+                {mechanic?.name ?? 'Assigned mechanic'}
               </AppText>
             </View>
 

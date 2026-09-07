@@ -16,6 +16,31 @@ type RequestOptions = {
 };
 
 let refreshInFlight: Promise<string | null> | null = null;
+const unauthorizedListeners = new Set<() => void>();
+
+export function subscribeUnauthorized(listener: () => void): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+function notifyUnauthorized(): void {
+  unauthorizedListeners.forEach((listener) => listener());
+}
+
+/** Render Free cold start can exceed 50s. Do not fail after a few seconds. */
+const REQUEST_TIMEOUT_MS = 75_000;
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === 'AbortError') ||
+    (typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name?: string }).name === 'AbortError')
+  );
+}
 
 export async function apiRequest<T>(
   pathOrUrl: string,
@@ -30,18 +55,31 @@ export async function apiRequest<T>(
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     response = await fetch(joinApiUrl(pathOrUrl), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch (error) {
+    if (isAbortError(error)) {
+      throw new ApiError({
+        message:
+          'The server is taking too long to respond. The first request after idle can take about a minute.',
+        status: null,
+        kind: 'timeout',
+      });
+    }
     throw new ApiError({
       message: error instanceof Error ? error.message : 'Network request failed',
       status: null,
       kind: 'network',
     });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (response.status === 401 && auth && !skipRefresh) {
@@ -50,6 +88,7 @@ export async function apiRequest<T>(
       return apiRequest<T>(pathOrUrl, { ...options, skipRefresh: true });
     }
     await clearTokens();
+    notifyUnauthorized();
     const bodyJson = await readBody(response);
     throw new ApiError({
       message: messageFromBody(bodyJson, 'Session expired. Sign in again.'),

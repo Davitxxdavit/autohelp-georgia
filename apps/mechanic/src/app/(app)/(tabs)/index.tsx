@@ -55,7 +55,7 @@ export default function MechanicHomeScreen() {
         AutoHelp Mechanic
       </AppText>
       <AppText variant="h2">
-        {greeting}, {profile.name}
+        {profile.name ? `${greeting}, ${profile.name}` : greeting}
       </AppText>
 
       <AnimatedPressable

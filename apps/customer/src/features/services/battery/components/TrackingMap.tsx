@@ -20,11 +20,11 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
-import { MOCK_BATUMI_LOCATION, MOCK_MECHANIC_POINT } from '../mock';
+import { MOCK_MECHANIC_POINT } from '../mock';
 import type { MockGeoPoint } from '../types';
 
 type TrackingMapProps = {
-  /** Customer pin. Replace with live user coords later. */
+  /** Customer pin coordinates for a11y. Visual layout is still schematic. */
   userPoint?: MockGeoPoint;
   /** Specialist pin. Replace with realtime mechanic coords later. */
   mechanicPoint?: MockGeoPoint;
@@ -40,7 +40,7 @@ const APPROACH_MS = 22000;
  * Later: map `userPoint` / `mechanicPoint` onto a MapView region.
  */
 export function TrackingMap({
-  userPoint = MOCK_BATUMI_LOCATION.point,
+  userPoint,
   mechanicPoint = MOCK_MECHANIC_POINT,
 }: TrackingMapProps) {
   const reducedMotion = !!useReducedMotion();
@@ -134,7 +134,11 @@ export function TrackingMap({
       </Svg>
       <View
         style={styles.you}
-        accessibilityLabel={`You. ${userPoint.latitude.toFixed(4)}, ${userPoint.longitude.toFixed(4)}`}
+        accessibilityLabel={
+          userPoint
+            ? `You. ${userPoint.latitude.toFixed(4)}, ${userPoint.longitude.toFixed(4)}`
+            : 'You'
+        }
       >
         <View style={styles.youHalo} />
         <View style={styles.youDot} />

@@ -81,7 +81,7 @@ export default function DiagnosticsSearchingScreen() {
   const bottomPad = useServiceBottomPad();
   const router = useRouter();
   const reducedMotion = !!useReducedMotion();
-  const { draft, setLiveRequest, markCompleted } = useDiagnosticsFlow();
+  const { draft, setLiveRequest, markCompleted, reset } = useDiagnosticsFlow();
 
   const onRequest = useCallback(
     (req: ApiServiceRequest) => {
@@ -96,6 +96,7 @@ export default function DiagnosticsSearchingScreen() {
     currentPhase: 'searching',
     routes: DIAGNOSTICS_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   if (notFound) {

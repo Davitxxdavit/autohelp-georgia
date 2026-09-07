@@ -20,6 +20,7 @@ export {
   listServiceRequests,
   listServiceRequestsFirstPage,
 } from './requests';
+export { createRating } from './ratings';
 export { getServiceCatalog, listServices, useServices } from './services';
 export {
   clearTokens,

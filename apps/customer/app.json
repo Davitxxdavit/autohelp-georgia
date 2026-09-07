@@ -8,7 +8,10 @@
     "scheme": "autohelp",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "AutoHelp uses your location to send a specialist to where your car is."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +30,14 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AutoHelp uses your location to send a specialist to where your car is.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       [
         "expo-navigation-bar",
         {

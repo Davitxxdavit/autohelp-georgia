@@ -38,7 +38,7 @@ export type DiagnosticsDraft = {
   vehicleId: string | null;
   problemId: DiagnosticsProblemId | null;
   details: string;
-  location: MockLocation;
+  location: MockLocation | null;
   requestedAt: string | null;
   completedAt: string | null;
   rating: DiagnosticsRating | null;

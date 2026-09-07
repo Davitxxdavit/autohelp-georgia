@@ -28,6 +28,10 @@ export type AppCopy = {
     terms: string;
     privacy: string;
     invalidPhone: string;
+    passwordPlaceholder: string;
+    invalidPassword: string;
+    signInFailed: string;
+    signingIn: string;
   };
   otp: {
     title: string;
@@ -83,6 +87,10 @@ const ka: AppCopy = {
     terms: 'მომსახურების პირობები',
     privacy: 'კონფიდენციალურობის პოლიტიკა',
     invalidPhone: 'შეიყვანე სწორი მობილურის ნომერი',
+    passwordPlaceholder: 'პაროლი',
+    invalidPassword: 'შეიყვანე პაროლი',
+    signInFailed: 'შესვლა ვერ მოხერხდა. შეამოწმე ნომერი, პაროლი და კავშირი.',
+    signingIn: 'შესვლა…',
   },
   otp: {
     title: 'შეიყვანე SMS კოდი',
@@ -133,6 +141,10 @@ const en: AppCopy = {
     terms: 'Terms of Service',
     privacy: 'Privacy Policy',
     invalidPhone: 'Enter a valid mobile number',
+    passwordPlaceholder: 'Password',
+    invalidPassword: 'Enter your password',
+    signInFailed: 'Couldn’t sign in. Check your phone, password, and connection.',
+    signingIn: 'Signing in…',
   },
   otp: {
     title: 'Enter the SMS code',
@@ -184,6 +196,10 @@ const ru: AppCopy = {
     terms: 'Условия использования',
     privacy: 'Политика конфиденциальности',
     invalidPhone: 'Введите корректный номер мобильного',
+    passwordPlaceholder: 'Пароль',
+    invalidPassword: 'Введите пароль',
+    signInFailed: 'Не удалось войти. Проверьте номер, пароль и соединение.',
+    signingIn: 'Вход…',
   },
   otp: {
     title: 'Введите SMS-код',
@@ -235,6 +251,10 @@ const tr: AppCopy = {
     terms: 'Hizmet Şartları',
     privacy: 'Gizlilik Politikası',
     invalidPhone: 'Geçerli bir cep telefonu numarası girin',
+    passwordPlaceholder: 'Şifre',
+    invalidPassword: 'Şifrenizi girin',
+    signInFailed: 'Giriş yapılamadı. Telefon, şifre ve bağlantıyı kontrol edin.',
+    signingIn: 'Giriş yapılıyor…',
   },
   otp: {
     title: 'SMS kodunu girin',

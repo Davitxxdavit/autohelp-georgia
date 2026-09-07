@@ -3,7 +3,7 @@ import type { MockMechanic } from '@/features/services/flow/types';
 
 import type { DiagnosticsOption, DiagnosticsProblem } from './types';
 
-export { MOCK_BATUMI_LOCATION, SEARCH_DELAY_MS } from '@/features/services/flow/location';
+export { SEARCH_DELAY_MS } from '@/features/services/flow/location';
 
 export const DIAGNOSTICS_OPTIONS: DiagnosticsOption[] = [
   {

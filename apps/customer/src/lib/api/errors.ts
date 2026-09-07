@@ -1,8 +1,11 @@
 export type ApiErrorKind =
   | 'network'
+  | 'timeout'
   | 'validation'
   | 'unauthorized'
   | 'forbidden'
+  | 'not_found'
+  | 'conflict'
   | 'server'
   | 'http';
 
@@ -36,6 +39,8 @@ export function kindFromStatus(status: number | null): ApiErrorKind {
   if (status === 400) return 'validation';
   if (status === 401) return 'unauthorized';
   if (status === 403) return 'forbidden';
+  if (status === 404) return 'not_found';
+  if (status === 409) return 'conflict';
   if (status >= 500) return 'server';
   return 'http';
 }

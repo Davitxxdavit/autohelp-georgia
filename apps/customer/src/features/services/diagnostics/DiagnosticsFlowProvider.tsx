@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import type { ApiServiceRequest } from '@/lib/api/types';
-import { MOCK_BATUMI_LOCATION } from '@/features/services/flow/location';
 import type { MockLocation } from '@/features/services/flow/types';
 
 import type {
@@ -30,7 +29,7 @@ function createEmptyDraft(): DiagnosticsDraft {
     vehicleId: null,
     problemId: null,
     details: '',
-    location: MOCK_BATUMI_LOCATION,
+    location: null,
     requestedAt: null,
     completedAt: null,
     rating: null,
@@ -91,17 +90,17 @@ export function DiagnosticsFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markRequested = useCallback((created?: DiagnosticsRequestCreated) => {
-    setDraft((prev) =>
-      persistDraft({
-        ...prev,
-        requestedAt: prev.requestedAt ?? new Date().toISOString(),
-        serviceRequestId: created?.id ?? prev.serviceRequestId,
-        backendEstimatedPriceAmount:
-          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
-        backendEstimatedPriceCurrency:
-          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
-      }),
-    );
+    const prev = persistedDraft;
+    const next = persistDraft({
+      ...prev,
+      requestedAt: prev.requestedAt ?? new Date().toISOString(),
+      serviceRequestId: created?.id ?? prev.serviceRequestId,
+      backendEstimatedPriceAmount:
+        created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+      backendEstimatedPriceCurrency:
+        created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
+    });
+    setDraft(next);
   }, []);
 
   const markCompleted = useCallback((completedAt?: string | null) => {

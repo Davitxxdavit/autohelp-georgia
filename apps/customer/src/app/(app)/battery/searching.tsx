@@ -81,7 +81,7 @@ export default function BatterySearchingScreen() {
   const bottomPad = useBatteryBottomPad();
   const router = useRouter();
   const reducedMotion = !!useReducedMotion();
-  const { draft, setLiveRequest, markCompleted } = useBatteryFlow();
+  const { draft, setLiveRequest, markCompleted, reset } = useBatteryFlow();
 
   const onRequest = useCallback(
     (req: ApiServiceRequest) => {
@@ -96,6 +96,7 @@ export default function BatterySearchingScreen() {
     currentPhase: 'searching',
     routes: BATTERY_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   if (notFound) {

@@ -9,8 +9,15 @@ import {
 } from 'react';
 
 import type { LanguageId } from '@/constants/languages';
-import { obtainDevelopmentJwt } from '@/lib/api/devAuth';
-import { clearTokens } from '@/lib/api/tokens';
+import { obtainTokenPair, refreshTokenPair } from '@/lib/api/auth';
+import { subscribeUnauthorized } from '@/lib/api/client';
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setTokenPair,
+} from '@/lib/api/tokens';
 import { resetAppState } from '@/services/storage/reset';
 
 import {
@@ -38,9 +45,9 @@ type SessionContextValue = {
   destination: SessionDestination;
   setLanguage: (language: LanguageId) => Promise<void>;
   completeOnboarding: () => Promise<void>;
-  /** MOCK — marks user authenticated locally after fake OTP */
-  mockSignIn: (phone: string) => Promise<void>;
-  mockSignOut: () => Promise<void>;
+  /** JWT phone + password. Production auth will move to phone OTP. */
+  signInWithPassword: (phone: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
   /**
    * DEV ONLY — clears language / onboarding / mock auth and resets in-memory session.
    * No-op outside __DEV__.
@@ -50,6 +57,19 @@ type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+async function restoreJwtSession(): Promise<boolean> {
+  if (await getAccessToken()) return true;
+  const refresh = await getRefreshToken();
+  if (!refresh) return false;
+  try {
+    const data = await refreshTokenPair(refresh);
+    await setAccessToken(data.access);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<SessionSnapshot>(EMPTY_SESSION);
@@ -58,11 +78,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     readSession()
       .then(async (snapshot) => {
+        let next = snapshot;
         if (snapshot.authenticated) {
-          await obtainDevelopmentJwt();
+          const restored = await restoreJwtSession();
+          if (!restored) {
+            await clearMockAuthenticated();
+            await clearTokens();
+            next = { ...snapshot, authenticated: false, phone: null };
+          }
         }
         if (mounted) {
-          setSession(snapshot);
+          setSession(next);
           setIsLoading(false);
         }
       })
@@ -87,9 +113,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession((prev) => ({ ...prev, onboardingCompleted: true }));
   }, []);
 
-  const mockSignIn = useCallback(async (phone: string) => {
+  const signInWithPassword = useCallback(async (phone: string, password: string) => {
+    const tokens = await obtainTokenPair({ phone, password });
+    await setTokenPair(tokens);
     await writeMockAuthenticated(phone);
-    await obtainDevelopmentJwt();
     setSession((prev) => ({
       ...prev,
       authenticated: true,
@@ -97,7 +124,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const mockSignOut = useCallback(async () => {
+  const signOut = useCallback(async () => {
     await clearMockAuthenticated();
     await clearTokens();
     setSession((prev) => ({
@@ -106,6 +133,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       phone: null,
     }));
   }, []);
+
+  useEffect(() => subscribeUnauthorized(() => {
+    void signOut();
+  }), [signOut]);
 
   const resetAppStateForDev = useCallback(async () => {
     if (!__DEV__) return;
@@ -125,8 +156,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       destination: resolveSessionDestination(session),
       setLanguage,
       completeOnboarding,
-      mockSignIn,
-      mockSignOut,
+      signInWithPassword,
+      signOut,
       resetAppStateForDev,
     }),
     [
@@ -136,8 +167,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       setLanguage,
       completeOnboarding,
-      mockSignIn,
-      mockSignOut,
+      signInWithPassword,
+      signOut,
       resetAppStateForDev,
     ],
   );

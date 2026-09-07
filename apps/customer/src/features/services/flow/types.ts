@@ -18,15 +18,18 @@ export type MechanicIdentity = {
   etaMinutes?: number;
 };
 
-/** Replace with expo-location / reverse geocode later */
-export type MockLocation = {
+/** Customer GPS snapshot used for request create. Never a silent mock. */
+export type CustomerLocation = {
   id: string;
   label: string;
   city: string;
   country: string;
   point: MockGeoPoint;
-  source: 'mock';
+  source: 'device';
 };
+
+/** @deprecated Use CustomerLocation. Kept so existing imports compile. */
+export type MockLocation = CustomerLocation;
 
 export type MockMechanic = MechanicIdentity & {
   distanceKm: number;

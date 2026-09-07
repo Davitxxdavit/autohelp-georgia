@@ -4,7 +4,7 @@ import type { MockMechanic } from '@/features/services/flow/types';
 
 import type { BatteryOption, BatteryProblem } from './types';
 
-export { MOCK_BATUMI_LOCATION, SEARCH_DELAY_MS } from '@/features/services/flow/location';
+export { SEARCH_DELAY_MS } from '@/features/services/flow/location';
 
 export const MOCK_MECHANIC_POINT = MOCK_SPECIALIST_POINT;
 

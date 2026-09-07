@@ -122,7 +122,7 @@ export default function DiagnosticsCompletedScreen() {
                 Specialist
               </AppText>
               <AppText variant="bodyMedium">
-                {specialist?.name ?? 'Specialist'}
+                {specialist?.name ?? 'Assigned mechanic'}
               </AppText>
             </View>
 

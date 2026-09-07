@@ -14,6 +14,7 @@ import {
   getDiagnosticsOption,
   getDiagnosticsProblem,
 } from '@/features/services/diagnostics/mock';
+import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import { isApiError } from '@/lib/api/errors';
@@ -46,10 +47,20 @@ export default function DiagnosticsSummaryScreen() {
     : undefined;
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(vehicle && option && problem) && !submitting;
+  const canSubmit =
+    Boolean(vehicle && option && problem) &&
+    isUsableDeviceLocation(draft.location) &&
+    !submitting;
 
   const onRequestDiagnostics = async () => {
-    if (!vehicle || !option || !problem || !draft.problemId || submitting) {
+    if (
+      !vehicle ||
+      !option ||
+      !problem ||
+      !draft.problemId ||
+      !isUsableDeviceLocation(draft.location) ||
+      submitting
+    ) {
       return;
     }
     setSubmitting(true);
@@ -118,7 +129,7 @@ export default function DiagnosticsSummaryScreen() {
             <Divider />
             <Row label="Problem" value={problem?.title ?? '—'} />
             <Divider />
-            <Row label="Location" value={draft.location.label} />
+            <Row label="Location" value={draft.location?.label ?? '—'} />
             <Divider />
             <Row label="Service" value={option?.title ?? '—'} />
             <Divider />

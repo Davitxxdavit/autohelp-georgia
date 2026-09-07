@@ -82,6 +82,7 @@ export default function BatteryFoundScreen() {
     currentPhase: 'found',
     routes: BATTERY_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   const live = request ?? draft.liveRequest;
@@ -166,7 +167,7 @@ export default function BatteryFoundScreen() {
             <MechanicCard mechanic={mechanic} variant="identity" />
           ) : (
             <AppText variant="body" color="textSecondary" style={styles.center}>
-              Specialist assigned
+              Assigned mechanic
             </AppText>
           )}
         </Reveal>

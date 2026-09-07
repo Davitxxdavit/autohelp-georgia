@@ -2,7 +2,7 @@ import type { MockMechanic } from '@/features/services/flow/types';
 
 import type { KeysProblem } from './types';
 
-export { MOCK_BATUMI_LOCATION, SEARCH_DELAY_MS } from '@/features/services/flow/location';
+export { SEARCH_DELAY_MS } from '@/features/services/flow/location';
 
 export const KEYS_PROBLEMS: KeysProblem[] = [
   { id: 'locked_out', title: 'Locked out of my car', emoji: '🚪' },

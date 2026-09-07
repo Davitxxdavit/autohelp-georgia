@@ -1,23 +1,35 @@
 import { useCallback, useState } from 'react';
-import { Alert, BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PhoneInput, isValidGeMobile } from '@/components/auth/PhoneInput';
+import { PhoneInput, isValidGeMobile, toE164GeMobile } from '@/components/auth/PhoneInput';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { getCopy } from '@/content/copy';
+import { isApiError } from '@/lib/api/errors';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
+import { typography } from '@/theme/typography';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { session, resetAppStateForDev } = useSession();
+  const { session, signInWithPassword, resetAppStateForDev } = useSession();
   const copy = getCopy(session.language);
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -26,17 +38,28 @@ export default function LoginScreen() {
     }, []),
   );
 
-  const onContinue = () => {
+  const onContinue = async () => {
+    if (busy) return;
     if (!isValidGeMobile(phone)) {
       setError(copy.login.invalidPhone);
       return;
     }
+    if (!password.trim()) {
+      setError(copy.login.invalidPassword);
+      return;
+    }
     setError(null);
-    // MOCK — no SMS is sent. Navigate to OTP UI only.
-    router.push({
-      pathname: '/(auth)/verify-otp',
-      params: { phone },
-    });
+    setBusy(true);
+    try {
+      await signInWithPassword(toE164GeMobile(phone), password);
+      router.replace('/(app)/(tabs)');
+    } catch (caught) {
+      setError(
+        isApiError(caught) ? caught.message : copy.login.signInFailed,
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -58,7 +81,7 @@ export default function LoginScreen() {
                     await resetAppStateForDev();
                     Alert.alert(
                       'DEV reset',
-                      'Cleared language, onboarding, and mock auth.',
+                      'Cleared language, onboarding, and auth session.',
                     );
                   })();
                 }
@@ -87,6 +110,21 @@ export default function LoginScreen() {
           }}
           placeholder={copy.login.phonePlaceholder}
         />
+        <TextInput
+          value={password}
+          onChangeText={(value) => {
+            setPassword(value);
+            if (error) setError(null);
+          }}
+          placeholder={copy.login.passwordPlaceholder}
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="password"
+          accessibilityLabel={copy.login.passwordPlaceholder}
+          style={styles.password}
+        />
         {error ? (
           <AppText variant="caption" color="danger">
             {error}
@@ -95,7 +133,13 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.footer}>
-        <PrimaryButton label={copy.login.continue} onPress={onContinue} />
+        <PrimaryButton
+          label={busy ? copy.login.signingIn : copy.login.continue}
+          disabled={busy}
+          onPress={() => {
+            void onContinue();
+          }}
+        />
         <AppText variant="caption" color="textMuted" style={styles.legal}>
           {copy.login.legal}
         </AppText>
@@ -144,6 +188,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
     justifyContent: 'center',
+  },
+  password: {
+    ...typography.body,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   footer: {
     gap: spacing.md,

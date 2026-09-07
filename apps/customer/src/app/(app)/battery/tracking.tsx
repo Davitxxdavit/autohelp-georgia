@@ -23,6 +23,7 @@ import {
 import {
   BATTERY_FLOW_ROUTES,
   assignedMechanicIdentity,
+  customerPointFromLiveOrDraft,
   trackingStatusCopy,
 } from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
@@ -60,7 +61,7 @@ function Reveal({
 export default function BatteryTrackingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { draft, setLiveRequest, markCompleted } = useBatteryFlow();
+  const { draft, setLiveRequest, markCompleted, reset } = useBatteryFlow();
 
   const onRequest = useCallback(
     (req: ApiServiceRequest) => {
@@ -75,6 +76,7 @@ export default function BatteryTrackingScreen() {
     currentPhase: 'tracking',
     routes: BATTERY_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   const live = request ?? draft.liveRequest;
@@ -140,7 +142,7 @@ export default function BatteryTrackingScreen() {
 
         <Reveal delayMs={timing.normal}>
           <TrackingMap
-            userPoint={draft.location.point}
+            userPoint={customerPointFromLiveOrDraft(live, draft.location)}
             mechanicPoint={MOCK_MECHANIC_POINT}
           />
         </Reveal>

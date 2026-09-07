@@ -56,6 +56,7 @@ export default function DiagnosticsFoundScreen() {
     currentPhase: 'found',
     routes: DIAGNOSTICS_FLOW_ROUTES,
     onRequest,
+    onCancelled: reset,
   });
 
   const live = request ?? draft.liveRequest;
@@ -140,7 +141,7 @@ export default function DiagnosticsFoundScreen() {
             <MechanicCard mechanic={specialist} variant="identity" />
           ) : (
             <AppText variant="body" color="textSecondary" style={styles.center}>
-              Specialist assigned
+              Assigned mechanic
             </AppText>
           )}
         </Reveal>

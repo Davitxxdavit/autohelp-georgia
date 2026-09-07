@@ -13,11 +13,11 @@ import { Alert } from 'react-native';
 import { mapOfferToJob, jobStatusFromRequest } from '@/features/jobs/mapOffer';
 import {
   JOB_STATUS_TRANSITIONS,
+  OPERATIONAL_JOB_STATUSES,
   type JobStatus,
   type MockJob,
 } from '@/features/jobs/types';
 import { isApiError } from '@/lib/api/errors';
-import { obtainDevelopmentJwt } from '@/lib/api/devAuth';
 import {
   acceptOffer,
   declineOffer,
@@ -28,13 +28,18 @@ import {
   transitionJob,
   type MechanicJobAction,
 } from '@/lib/api/mechanic';
+import { clearTokens, getAccessToken } from '@/lib/api/tokens';
 import type { ApiMechanicMe, ApiMechanicOffer } from '@/lib/api/types';
 
 import { MOCK_MECHANIC, type MockMechanicProfile } from './mock';
 
 const INITIAL_PROFILE: MockMechanicProfile = {
-  ...MOCK_MECHANIC,
+  id: '',
+  name: '',
+  rating: 0,
+  verified: false,
   online: false,
+  supportedServices: MOCK_MECHANIC.supportedServices,
 };
 
 type MechanicSessionValue = {
@@ -49,6 +54,7 @@ type MechanicSessionValue = {
   declineJob: (id: string) => Promise<boolean>;
   updateJobStatus: (jobId: string, status: JobStatus) => Promise<MockJob | null>;
   finishJob: () => boolean;
+  signOut: () => Promise<void>;
 };
 
 const MechanicSessionContext = createContext<MechanicSessionValue | null>(null);
@@ -65,12 +71,12 @@ function mapMeToProfile(me: ApiMechanicMe): MockMechanicProfile {
   const name = [me.first_name, me.last_name].filter(Boolean).join(' ').trim();
   const rating = Number.parseFloat(String(me.rating_average));
   return {
-    ...MOCK_MECHANIC,
     id: me.id,
-    name: name || MOCK_MECHANIC.name,
+    name: name || 'Mechanic',
     online: me.online,
     verified: me.verified,
-    rating: Number.isFinite(rating) ? rating : MOCK_MECHANIC.rating,
+    rating: Number.isFinite(rating) ? rating : 0,
+    supportedServices: MOCK_MECHANIC.supportedServices,
   };
 }
 
@@ -79,12 +85,16 @@ function errorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+const OFFER_POLL_INTERVAL_MS = 2500;
+
 export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<MockMechanicProfile>(INITIAL_PROFILE);
   const [activeJob, setActiveJob] = useState<MockJob | null>(null);
   const [pendingOffer, setPendingOffer] = useState<ApiMechanicOffer | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const availabilityBusyRef = useRef(false);
+  const pollInFlightRef = useRef(false);
+  const pollQueuedRef = useRef(false);
 
   const incomingJob = useMemo(() => {
     if (!profile.online || activeJob || !pendingOffer) return null;
@@ -92,20 +102,39 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   }, [activeJob, pendingOffer, profile.online]);
 
   const refreshIncoming = useCallback(async () => {
+    if (!(await getAccessToken())) return;
+    if (pollInFlightRef.current) {
+      pollQueuedRef.current = true;
+      return;
+    }
+    pollInFlightRef.current = true;
     try {
-      const [offers, active] = await Promise.all([
-        listPendingOffers(),
-        getActiveJob(),
-      ]);
-      setPendingOffer(offers[0] ?? null);
-      setActiveJob((prev) => {
-        if (prev?.status === 'COMPLETED') return prev;
-        if (!active) return null;
-        return mapOfferToJob(
-          active,
-          jobStatusFromRequest(active.request.status),
-        );
-      });
+      do {
+        pollQueuedRef.current = false;
+        const me = await getMechanicMe();
+        setProfile(mapMeToProfile(me));
+        const [offers, active] = await Promise.all([
+          me.online ? listPendingOffers() : Promise.resolve([] as ApiMechanicOffer[]),
+          getActiveJob(),
+        ]);
+        setPendingOffer(me.online ? (offers[0] ?? null) : null);
+        setActiveJob((prev) => {
+          if (prev?.status === 'COMPLETED') return prev;
+          if (active) {
+            return mapOfferToJob(
+              active,
+              jobStatusFromRequest(active.request.status),
+            );
+          }
+          if (
+            prev &&
+            (OPERATIONAL_JOB_STATUSES as readonly string[]).includes(prev.status)
+          ) {
+            return prev;
+          }
+          return null;
+        });
+      } while (pollQueuedRef.current);
     } catch (error) {
       if (__DEV__) {
         console.warn('[AutoHelp Mechanic] refresh failed', error);
@@ -113,48 +142,18 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
           console.warn('[AutoHelp Mechanic] status', error.status, 'body', error.body);
         }
       }
+    } finally {
+      pollInFlightRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      await obtainDevelopmentJwt();
-      if (!mounted) return;
-      try {
-        const me = await getMechanicMe();
-        if (!mounted) return;
-        setProfile(mapMeToProfile(me));
-      } catch (error) {
-        if (__DEV__) {
-          console.warn('[AutoHelp Mechanic] profile load failed', error);
-        }
-      }
-      if (!mounted) return;
-      try {
-        const [offers, active] = await Promise.all([
-          listPendingOffers(),
-          getActiveJob(),
-        ]);
-        if (!mounted) return;
-        setPendingOffer(offers[0] ?? null);
-        if (active) {
-          setActiveJob(
-            mapOfferToJob(active, jobStatusFromRequest(active.request.status)),
-          );
-        } else {
-          setActiveJob(null);
-        }
-      } catch (error) {
-        if (__DEV__) {
-          console.warn('[AutoHelp Mechanic] initial load failed', error);
-        }
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    void refreshIncoming();
+    const id = setInterval(() => {
+      void refreshIncoming();
+    }, OFFER_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [refreshIncoming]);
 
   const getJob = useCallback(
     (id: string): MockJob | undefined => {
@@ -213,9 +212,10 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
           console.warn('[AutoHelp Mechanic] status', error.status, 'body', error.body);
         }
       }
+      void refreshIncoming();
       return null;
     }
-  }, [activeJob]);
+  }, [activeJob, refreshIncoming]);
 
   const declineJob = useCallback(async (id: string): Promise<boolean> => {
     if (activeJob?.id === id) return false;
@@ -273,6 +273,13 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     return true;
   }, [activeJob, refreshIncoming]);
 
+  const signOut = useCallback(async () => {
+    await clearTokens();
+    setProfile(INITIAL_PROFILE);
+    setActiveJob(null);
+    setPendingOffer(null);
+  }, []);
+
   const value = useMemo<MechanicSessionValue>(
     () => ({
       profile,
@@ -286,6 +293,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       declineJob,
       updateJobStatus,
       finishJob,
+      signOut,
     }),
     [
       acceptJob,
@@ -298,6 +306,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       profile,
       refreshIncoming,
       setOnline,
+      signOut,
       updateJobStatus,
     ],
   );

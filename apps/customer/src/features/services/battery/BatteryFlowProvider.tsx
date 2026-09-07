@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import { MOCK_BATUMI_LOCATION } from './mock';
 import type {
   BatteryDraft,
   BatteryOptionId,
@@ -29,7 +28,7 @@ function createEmptyDraft(): BatteryDraft {
     vehicleId: null,
     problemId: null,
     details: '',
-    location: MOCK_BATUMI_LOCATION,
+    location: null,
     requestedAt: null,
     completedAt: null,
     rating: null,
@@ -88,17 +87,17 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markRequested = useCallback((created?: BatteryRequestCreated) => {
-    setDraft((prev) =>
-      persistDraft({
-        ...prev,
-        requestedAt: prev.requestedAt ?? new Date().toISOString(),
-        serviceRequestId: created?.id ?? prev.serviceRequestId,
-        backendEstimatedPriceAmount:
-          created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
-        backendEstimatedPriceCurrency:
-          created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
-      }),
-    );
+    const prev = persistedDraft;
+    const next = persistDraft({
+      ...prev,
+      requestedAt: prev.requestedAt ?? new Date().toISOString(),
+      serviceRequestId: created?.id ?? prev.serviceRequestId,
+      backendEstimatedPriceAmount:
+        created?.estimatedPriceAmount ?? prev.backendEstimatedPriceAmount,
+      backendEstimatedPriceCurrency:
+        created?.estimatedPriceCurrency ?? prev.backendEstimatedPriceCurrency,
+    });
+    setDraft(next);
   }, []);
 
   const markCompleted = useCallback((completedAt?: string | null) => {

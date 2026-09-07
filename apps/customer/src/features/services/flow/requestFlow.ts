@@ -82,8 +82,8 @@ export function assignedMechanicIdentity(
   const rating = Number.parseFloat(String(mechanic.rating_average));
   return {
     id: mechanic.id,
-    name: mechanic.first_name.trim() || 'Specialist',
-    rating: Number.isFinite(rating) ? rating : 0,
+    name: mechanic.first_name.trim() || 'Assigned mechanic',
+    rating: Number.isFinite(rating) ? rating : Number.NaN,
     verified: mechanic.verified,
   };
 }
@@ -129,4 +129,20 @@ export function requestEstimateLabel(
     request.estimated_price_amount,
     request.estimated_price_currency,
   );
+}
+
+/** Prefer the coordinates already stored on the request; else the captured draft snapshot. */
+export function customerPointFromLiveOrDraft(
+  live: Pick<ApiServiceRequest, 'customer_latitude' | 'customer_longitude'> | null | undefined,
+  location: { source?: string; point: { latitude: number; longitude: number } } | null | undefined,
+): { latitude: number; longitude: number } | undefined {
+  const latitude = Number(live?.customer_latitude);
+  const longitude = Number(live?.customer_longitude);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    return { latitude, longitude };
+  }
+  if (location?.source === 'device') {
+    return location.point;
+  }
+  return undefined;
 }

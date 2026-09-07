@@ -46,7 +46,7 @@ export function mapOfferToJob(
     vehicleYear: vehicle.year,
     fuel: fuelLabel(vehicle.fuel),
     problem: request.problem_label,
-    locationLabel: request.customer_address || 'Batumi, Georgia',
+    locationLabel: request.customer_address || 'Customer location',
     distanceKm: MOCK_BATTERY_JOB.distanceKm,
     etaMinutes: MOCK_BATTERY_JOB.etaMinutes,
     estimatedPayoutGel: amount ? Number.parseFloat(amount) : 0,

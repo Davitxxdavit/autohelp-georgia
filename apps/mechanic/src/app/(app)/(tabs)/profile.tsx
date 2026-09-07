@@ -1,7 +1,9 @@
 import { StyleSheet, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SERVICE_LABELS } from '@/constants/services';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
@@ -10,7 +12,8 @@ import { spacing } from '@/theme/spacing';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = useMechanicSession();
+  const router = useRouter();
+  const { profile, signOut } = useMechanicSession();
 
   return (
     <View
@@ -35,9 +38,15 @@ export default function ProfileScreen() {
           {SERVICE_LABELS[id]}
         </AppText>
       ))}
-      <AppText variant="caption" color="textMuted">
-        Mock session — real sign-in comes later.
-      </AppText>
+      <PrimaryButton
+        label="Sign out"
+        onPress={() => {
+          void (async () => {
+            await signOut();
+            router.replace('/(auth)/login' as Href);
+          })();
+        }}
+      />
     </View>
   );
 }

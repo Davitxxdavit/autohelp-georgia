@@ -26,7 +26,7 @@ export type KeysDraft = {
   vehicleId: string | null;
   problemId: KeysProblemId | null;
   details: string;
-  location: MockLocation;
+  location: MockLocation | null;
   requestedAt: string | null;
   completedAt: string | null;
   rating: KeysRating | null;

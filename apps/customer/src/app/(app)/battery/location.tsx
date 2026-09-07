@@ -1,28 +1,26 @@
-import { useEffect } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
-import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
-import { AppText } from '@/components/ui/AppText';
 import { BatteryScreenHeader } from '@/features/services/battery/components/BatteryScreenHeader';
 import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
-import { MockMap } from '@/features/services/battery/components/MockMap';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { resolveCustomerLocation } from '@/features/services/battery/location';
+import { LocationCaptureBlock } from '@/features/services/flow/LocationCaptureBlock';
+import { isUsableDeviceLocation } from '@/features/services/flow/location';
+import { useDeviceLocationCapture } from '@/features/services/flow/useDeviceLocationCapture';
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
 export default function BatteryLocationScreen() {
   const router = useRouter();
   const { draft, setLocation } = useBatteryFlow();
   const location = draft.location;
-
-  useEffect(() => {
-    void resolveCustomerLocation().then(setLocation);
-  }, [setLocation]);
+  const { phase, message, retry } = useDeviceLocationCapture(
+    location,
+    setLocation,
+  );
+  const canConfirm = isUsableDeviceLocation(location) && phase === 'ready';
 
   return (
     <View style={styles.screen}>
@@ -36,31 +34,17 @@ export default function BatteryLocationScreen() {
           footer={
             <PrimaryButton
               label="Confirm location"
+              disabled={!canConfirm}
               onPress={() => router.push('/battery/summary')}
             />
           }
         >
-          <MockMap location={location} />
-          <View style={styles.place}>
-            <AppText variant="label" color="primary">
-              Current location
-            </AppText>
-            <AppText variant="h3">📍 {location.label}</AppText>
-          </View>
-          <AnimatedPressable
-            accessibilityLabel="Change location"
-            onPress={() => {
-              Alert.alert(
-                'Change location',
-                'Live location picking will use expo-location in a later build.',
-              );
-            }}
-            style={styles.change}
-          >
-            <AppText variant="button" color="primary">
-              Change location
-            </AppText>
-          </AnimatedPressable>
+          <LocationCaptureBlock
+            location={location}
+            phase={phase}
+            message={message}
+            onRetry={retry}
+          />
         </BatteryScreenScaffold>
       </FadeIn>
     </View>
@@ -76,16 +60,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
     flexGrow: 0,
-  },
-  place: {
-    gap: spacing.xs,
-  },
-  change: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
 });
