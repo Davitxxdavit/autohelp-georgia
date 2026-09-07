@@ -32,6 +32,8 @@ export type AppCopy = {
     invalidPassword: string;
     signInFailed: string;
     signingIn: string;
+    createAccountPrompt: string;
+    createAccount: string;
   };
   otp: {
     title: string;
@@ -44,6 +46,22 @@ export type AppCopy = {
      * Mock code accepted in development: 123456
      */
     mockHint: string;
+  };
+  register: {
+    title: string;
+    subtitle: string;
+    firstNamePlaceholder: string;
+    passwordPlaceholder: string;
+    confirmPasswordPlaceholder: string;
+    submit: string;
+    submitting: string;
+    invalidName: string;
+    invalidPhone: string;
+    invalidPassword: string;
+    passwordMismatch: string;
+    failed: string;
+    hasAccount: string;
+    signIn: string;
   };
 };
 
@@ -91,6 +109,8 @@ const ka: AppCopy = {
     invalidPassword: 'შეიყვანე პაროლი',
     signInFailed: 'შესვლა ვერ მოხერხდა. შეამოწმე ნომერი, პაროლი და კავშირი.',
     signingIn: 'შესვლა…',
+    createAccountPrompt: 'არ გაქვს ანგარიში?',
+    createAccount: 'შექმენი ანგარიში',
   },
   otp: {
     title: 'შეიყვანე SMS კოდი',
@@ -99,6 +119,22 @@ const ka: AppCopy = {
     verify: 'დადასტურება',
     invalid: 'არასწორი კოდი',
     mockHint: 'DEV: გამოიყენე კოდი 123456',
+  },
+  register: {
+    title: 'შექმენი ანგარიში',
+    subtitle: 'ტელეფონი და პაროლი საკმარისია დასაწყებად.',
+    firstNamePlaceholder: 'სახელი',
+    passwordPlaceholder: 'პაროლი',
+    confirmPasswordPlaceholder: 'გაიმეორე პაროლი',
+    submit: 'ანგარიშის შექმნა',
+    submitting: 'იქმნება…',
+    invalidName: 'შეიყვანე სახელი',
+    invalidPhone: 'შეიყვანე სწორი მობილურის ნომერი',
+    invalidPassword: 'შეიყვანე პაროლი',
+    passwordMismatch: 'პაროლები არ ემთხვევა',
+    failed: 'ანგარიში ვერ შეიქმნა. შეამოწმე მონაცემები და კავშირი.',
+    hasAccount: 'უკვე გაქვს ანგარიში?',
+    signIn: 'შესვლა',
   },
 };
 
@@ -145,6 +181,8 @@ const en: AppCopy = {
     invalidPassword: 'Enter your password',
     signInFailed: 'Couldn’t sign in. Check your phone, password, and connection.',
     signingIn: 'Signing in…',
+    createAccountPrompt: "Don't have an account?",
+    createAccount: 'Create account',
   },
   otp: {
     title: 'Enter the SMS code',
@@ -153,6 +191,22 @@ const en: AppCopy = {
     verify: 'Verify',
     invalid: 'Invalid code',
     mockHint: 'DEV: use code 123456',
+  },
+  register: {
+    title: 'Create an account',
+    subtitle: 'Use your phone and a password to get started.',
+    firstNamePlaceholder: 'First name',
+    passwordPlaceholder: 'Password',
+    confirmPasswordPlaceholder: 'Confirm password',
+    submit: 'Create account',
+    submitting: 'Creating…',
+    invalidName: 'Enter your first name',
+    invalidPhone: 'Enter a valid mobile number',
+    invalidPassword: 'Enter a password',
+    passwordMismatch: 'Passwords do not match',
+    failed: 'Couldn’t create the account. Check your details and connection.',
+    hasAccount: 'Already have an account?',
+    signIn: 'Sign in',
   },
 };
 
@@ -200,6 +254,8 @@ const ru: AppCopy = {
     invalidPassword: 'Введите пароль',
     signInFailed: 'Не удалось войти. Проверьте номер, пароль и соединение.',
     signingIn: 'Вход…',
+    createAccountPrompt: 'Нет аккаунта?',
+    createAccount: 'Создать аккаунт',
   },
   otp: {
     title: 'Введите SMS-код',
@@ -208,6 +264,22 @@ const ru: AppCopy = {
     verify: 'Подтвердить',
     invalid: 'Неверный код',
     mockHint: 'DEV: используйте код 123456',
+  },
+  register: {
+    title: 'Создать аккаунт',
+    subtitle: 'Телефон и пароль достаточно, чтобы начать.',
+    firstNamePlaceholder: 'Имя',
+    passwordPlaceholder: 'Пароль',
+    confirmPasswordPlaceholder: 'Повторите пароль',
+    submit: 'Создать аккаунт',
+    submitting: 'Создание…',
+    invalidName: 'Введите имя',
+    invalidPhone: 'Введите корректный номер мобильного',
+    invalidPassword: 'Введите пароль',
+    passwordMismatch: 'Пароли не совпадают',
+    failed: 'Не удалось создать аккаунт. Проверьте данные и соединение.',
+    hasAccount: 'Уже есть аккаунт?',
+    signIn: 'Войти',
   },
 };
 
@@ -255,6 +327,8 @@ const tr: AppCopy = {
     invalidPassword: 'Şifrenizi girin',
     signInFailed: 'Giriş yapılamadı. Telefon, şifre ve bağlantıyı kontrol edin.',
     signingIn: 'Giriş yapılıyor…',
+    createAccountPrompt: 'Hesabınız yok mu?',
+    createAccount: 'Hesap oluştur',
   },
   otp: {
     title: 'SMS kodunu girin',
@@ -263,6 +337,22 @@ const tr: AppCopy = {
     verify: 'Doğrula',
     invalid: 'Geçersiz kod',
     mockHint: 'DEV: 123456 kodunu kullanın',
+  },
+  register: {
+    title: 'Hesap oluştur',
+    subtitle: 'Başlamak için telefonunuz ve bir şifre yeterlidir.',
+    firstNamePlaceholder: 'Ad',
+    passwordPlaceholder: 'Şifre',
+    confirmPasswordPlaceholder: 'Şifreyi tekrar girin',
+    submit: 'Hesap oluştur',
+    submitting: 'Oluşturuluyor…',
+    invalidName: 'Adınızı girin',
+    invalidPhone: 'Geçerli bir cep telefonu numarası girin',
+    invalidPassword: 'Şifre girin',
+    passwordMismatch: 'Şifreler eşleşmiyor',
+    failed: 'Hesap oluşturulamadı. Bilgilerinizi ve bağlantıyı kontrol edin.',
+    hasAccount: 'Zaten hesabınız var mı?',
+    signIn: 'Giriş yap',
   },
 };
 

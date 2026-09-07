@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 import type { LanguageId } from '@/constants/languages';
-import { obtainTokenPair, refreshTokenPair } from '@/lib/api/auth';
+import { obtainTokenPair, refreshTokenPair, registerCustomer } from '@/lib/api/auth';
 import { subscribeUnauthorized } from '@/lib/api/client';
 import {
   clearTokens,
@@ -47,6 +47,11 @@ type SessionContextValue = {
   completeOnboarding: () => Promise<void>;
   /** JWT phone + password. Production auth will move to phone OTP. */
   signInWithPassword: (phone: string, password: string) => Promise<void>;
+  registerWithPassword: (args: {
+    phone: string;
+    password: string;
+    firstName: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
   /**
    * DEV ONLY — clears language / onboarding / mock auth and resets in-memory session.
@@ -113,16 +118,38 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession((prev) => ({ ...prev, onboardingCompleted: true }));
   }, []);
 
+  const applyAuthenticatedSession = useCallback(
+    async (phone: string, tokens: { access: string; refresh: string }) => {
+      await setTokenPair(tokens);
+      await writeMockAuthenticated(phone);
+      setSession((prev) => ({
+        ...prev,
+        authenticated: true,
+        phone,
+      }));
+    },
+    [],
+  );
+
   const signInWithPassword = useCallback(async (phone: string, password: string) => {
     const tokens = await obtainTokenPair({ phone, password });
-    await setTokenPair(tokens);
-    await writeMockAuthenticated(phone);
-    setSession((prev) => ({
-      ...prev,
-      authenticated: true,
-      phone,
-    }));
-  }, []);
+    await applyAuthenticatedSession(phone, tokens);
+  }, [applyAuthenticatedSession]);
+
+  const registerWithPassword = useCallback(
+    async (args: { phone: string; password: string; firstName: string }) => {
+      const created = await registerCustomer({
+        phone: args.phone,
+        password: args.password,
+        first_name: args.firstName,
+      });
+      await applyAuthenticatedSession(args.phone, {
+        access: created.access,
+        refresh: created.refresh,
+      });
+    },
+    [applyAuthenticatedSession],
+  );
 
   const signOut = useCallback(async () => {
     await clearMockAuthenticated();
@@ -157,6 +184,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLanguage,
       completeOnboarding,
       signInWithPassword,
+      registerWithPassword,
       signOut,
       resetAppStateForDev,
     }),
@@ -168,6 +196,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLanguage,
       completeOnboarding,
       signInWithPassword,
+      registerWithPassword,
       signOut,
       resetAppStateForDev,
     ],

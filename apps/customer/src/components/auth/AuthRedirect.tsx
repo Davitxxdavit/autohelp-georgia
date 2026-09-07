@@ -7,11 +7,12 @@ import { useSession } from '@/services/session/SessionProvider';
 function authScreen(
   group: string | undefined,
   screen: string | undefined,
-): 'language' | 'onboarding' | 'login' | 'otp' | null {
+): 'language' | 'onboarding' | 'login' | 'register' | 'otp' | null {
   if (group !== '(auth)') return null;
   if (screen === 'language') return 'language';
   if (screen === 'onboarding') return 'onboarding';
   if (screen === 'login') return 'login';
+  if (screen === 'register') return 'register';
   if (screen === 'verify-otp') return 'otp';
   return null;
 }
@@ -63,8 +64,8 @@ export function AuthRedirect() {
       return;
     }
 
-    // 4. Login / OTP own forward nav to Home after mock sign-in.
-    if (current === 'login' || current === 'otp') {
+    // 4. Login / register own forward nav to Home after JWT sign-in.
+    if (current === 'login' || current === 'register' || current === 'otp') {
       if (session.authenticated && current === 'otp') {
         return;
       }
@@ -74,7 +75,11 @@ export function AuthRedirect() {
     }
 
     if (!session.authenticated) {
-      if (current !== 'login' && current !== 'otp') {
+      if (
+        current !== 'login' &&
+        current !== 'register' &&
+        current !== 'otp'
+      ) {
         router.replace('/(auth)/login');
       }
       return;

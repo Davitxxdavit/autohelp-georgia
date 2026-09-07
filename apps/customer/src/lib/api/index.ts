@@ -1,4 +1,4 @@
-export { obtainTokenPair, refreshTokenPair } from './auth';
+export { obtainTokenPair, refreshTokenPair, registerCustomer } from './auth';
 export { apiGetList, apiRequest, unwrapList } from './client';
 export { getApiBaseUrl, isApiConfigured, requireApiBaseUrl } from './config';
 export { obtainDevelopmentJwt } from './devAuth';

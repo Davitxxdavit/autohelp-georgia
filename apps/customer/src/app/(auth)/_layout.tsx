@@ -26,6 +26,7 @@ export default function AuthLayout() {
         redirect={!session.languageSelected}
       />
       <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="verify-otp"
         options={{

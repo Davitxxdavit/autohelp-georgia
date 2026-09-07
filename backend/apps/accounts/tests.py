@@ -36,6 +36,23 @@ class SchemaEndpointTests(APITestCase):
         self.assertIn("password", properties)
         self.assertNotIn("username", properties)
 
+    def test_register_schema_exists(self):
+        response = self.client.get("/api/schema/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        schema = yaml.safe_load(response.content)
+        self.assertIn("/api/v1/auth/register/", schema["paths"])
+        operation = schema["paths"]["/api/v1/auth/register/"]["post"]
+        request_schema = operation["requestBody"]["content"]["application/json"][
+            "schema"
+        ]
+        if "$ref" in request_schema:
+            ref = request_schema["$ref"].rsplit("/", 1)[-1]
+            request_schema = schema["components"]["schemas"][ref]
+        properties = request_schema.get("properties", {})
+        self.assertIn("phone", properties)
+        self.assertIn("password", properties)
+        self.assertIn("first_name", properties)
+
 
 class PhoneTokenObtainTests(APITestCase):
     def setUp(self):

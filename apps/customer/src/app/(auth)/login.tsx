@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhoneInput, isValidGeMobile, toE164GeMobile } from '@/components/auth/PhoneInput';
@@ -140,6 +140,20 @@ export default function LoginScreen() {
             void onContinue();
           }}
         />
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={copy.login.createAccount}
+          disabled={busy}
+          onPress={() => router.push('/(auth)/register' as Href)}
+          style={styles.switch}
+        >
+          <AppText variant="caption" color="textMuted">
+            {copy.login.createAccountPrompt}{' '}
+            <AppText variant="caption" color="primary">
+              {copy.login.createAccount}
+            </AppText>
+          </AppText>
+        </Pressable>
         <AppText variant="caption" color="textMuted" style={styles.legal}>
           {copy.login.legal}
         </AppText>
@@ -201,6 +215,10 @@ const styles = StyleSheet.create({
   },
   footer: {
     gap: spacing.md,
+  },
+  switch: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
   legal: {
     textAlign: 'center',

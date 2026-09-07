@@ -1,5 +1,18 @@
 import { apiRequest } from './client';
-import type { TokenPair } from './types';
+import type { RegisterCustomerResponse, TokenPair } from './types';
+
+export async function registerCustomer(payload: {
+  phone: string;
+  password: string;
+  first_name: string;
+}): Promise<RegisterCustomerResponse> {
+  return apiRequest<RegisterCustomerResponse>('/auth/register/', {
+    method: 'POST',
+    body: payload,
+    auth: false,
+    skipRefresh: true,
+  });
+}
 
 export async function obtainTokenPair(payload: {
   phone: string;

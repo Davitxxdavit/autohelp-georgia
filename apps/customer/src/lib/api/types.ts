@@ -3,6 +3,15 @@ export type TokenPair = {
   refresh: string;
 };
 
+export type RegisterCustomerResponse = TokenPair & {
+  user: {
+    id: string;
+    phone: string;
+    role: string;
+    first_name: string;
+  };
+};
+
 export type TokenRefreshResponse = {
   access: string;
   refresh?: string;
