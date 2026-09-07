@@ -165,9 +165,10 @@ class MechanicOfferApiTests(APITestCase):
         self.assertEqual(mechanic["first_name"], "გიორგი")
         self.assertTrue(mechanic["verified"])
         self.assertIn("rating_average", mechanic)
-        self.assertNotIn("phone", mechanic)
+        self.assertEqual(mechanic["phone"], self.mechanic_user.phone)
         self.assertNotIn("email", mechanic)
         self.assertNotIn("last_name", mechanic)
+        self.assertIsNone(detail.data["customer_phone"])
         self.assertEqual(detail.data["status"], RequestStatus.ACCEPTED)
 
     def test_mechanic_can_decline_own_offer(self):
@@ -490,7 +491,8 @@ class MechanicOperationalApiTests(APITestCase):
         self.assertTrue(response.data["online"])
         self.assertEqual(response.data["id"], str(self.mechanic.id))
         self.assertEqual(response.data["first_name"], "გიორგი")
-        self.assertNotIn("phone", response.data)
+        self.assertEqual(response.data["phone"], self.mechanic_user.phone)
+        self.assertIn("services", response.data)
 
     def test_mechanic_can_set_online_false(self):
         self.auth(self.mechanic_user)
@@ -586,3 +588,384 @@ class MechanicOperationalApiTests(APITestCase):
         second = self.post_transition(created.id, "start-driving")
         self.assertEqual(second.status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(self.history_count(created), before)
+
+
+class MechanicApprovalEnforcementTests(APITestCase):
+    def setUp(self):
+        seed_catalog(service_model=Service, problem_model=ServiceProblem)
+        self.battery = Service.objects.get(code="BATTERY")
+        self.dead = ServiceProblem.objects.get(service=self.battery, code="DEAD_BATTERY")
+        self.customer_user, self.customer = make_customer("+995555000141")
+        self.approved_user, self.approved = make_mechanic(
+            "+995555000142", services=[self.battery]
+        )
+        self.pending_user, self.pending = make_mechanic(
+            "+995555000143",
+            services=[self.battery],
+            online=False,
+            name="Pending",
+        )
+        self.pending.verified = False
+        self.pending.approval_status = ApprovalStatus.PENDING
+        self.pending.save(update_fields=["verified", "approval_status", "updated_at"])
+        self.vehicle = Vehicle.objects.create(
+            customer=self.customer,
+            make="BMW",
+            model="i8",
+            year=2015,
+            fuel=FuelType.HYBRID,
+        )
+
+    def auth(self, user):
+        self.client.force_authenticate(user)
+
+    def create_battery_request(self):
+        self.auth(self.customer_user)
+        response = self.client.post(
+            "/api/v1/requests/",
+            {
+                "vehicle": str(self.vehicle.id),
+                "service": str(self.battery.id),
+                "problem": str(self.dead.id),
+                "customer_latitude": "41.616800",
+                "customer_longitude": "41.636700",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return ServiceRequest.objects.get(id=response.data["id"])
+
+    def test_unapproved_mechanic_can_read_me(self):
+        self.auth(self.pending_user)
+        response = self.client.get("/api/v1/mechanic/me/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["approval_status"], ApprovalStatus.PENDING)
+        self.assertFalse(response.data["verified"])
+        self.assertFalse(response.data["online"])
+        self.assertEqual(response.data["phone"], self.pending_user.phone)
+
+    def test_unapproved_mechanic_cannot_go_online(self):
+        self.auth(self.pending_user)
+        response = self.client.patch(
+            "/api/v1/mechanic/me/", {"online": True}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("awaiting approval", str(response.data["detail"]).lower())
+        self.pending.refresh_from_db()
+        self.assertFalse(self.pending.online)
+
+    def test_unapproved_mechanic_cannot_list_offers(self):
+        self.create_battery_request()
+        self.auth(self.pending_user)
+        response = self.client.get("/api/v1/mechanic/offers/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(
+            MechanicRequestOffer.objects.filter(mechanic=self.pending).exists()
+        )
+
+    def test_unapproved_mechanic_cannot_accept_offer(self):
+        created = self.create_battery_request()
+        offer = MechanicRequestOffer.objects.get(
+            request=created, mechanic=self.approved
+        )
+        foreign = MechanicRequestOffer.objects.create(
+            request=created,
+            mechanic=self.pending,
+            status=OfferStatus.PENDING,
+        )
+        self.auth(self.pending_user)
+        response = self.client.post(f"/api/v1/mechanic/offers/{foreign.id}/accept/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        created.refresh_from_db()
+        self.assertIsNone(created.assigned_mechanic_id)
+        offer.refresh_from_db()
+        self.assertEqual(offer.status, OfferStatus.PENDING)
+
+    def test_unapproved_mechanic_cannot_access_active_job(self):
+        self.auth(self.pending_user)
+        response = self.client.get("/api/v1/mechanic/jobs/active/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_approved_mechanic_can_go_online(self):
+        self.auth(self.approved_user)
+        response = self.client.patch(
+            "/api/v1/mechanic/me/", {"online": False}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["online"])
+        response = self.client.patch(
+            "/api/v1/mechanic/me/", {"online": True}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["online"])
+
+
+class CustomerCancelRequestTests(APITestCase):
+    def setUp(self):
+        seed_catalog(service_model=Service, problem_model=ServiceProblem)
+        self.battery = Service.objects.get(code="BATTERY")
+        self.dead = ServiceProblem.objects.get(service=self.battery, code="DEAD_BATTERY")
+        self.customer_user, self.customer = make_customer("+995555000151")
+        self.other_customer_user, self.other_customer = make_customer(
+            "+995555000152", "Other"
+        )
+        self.mechanic_user, self.mechanic = make_mechanic(
+            "+995555000153", services=[self.battery]
+        )
+        self.vehicle = Vehicle.objects.create(
+            customer=self.customer,
+            make="BMW",
+            model="i8",
+            year=2015,
+            fuel=FuelType.HYBRID,
+        )
+
+    def auth(self, user):
+        self.client.force_authenticate(user)
+
+    def create_battery_request(self):
+        self.auth(self.customer_user)
+        response = self.client.post(
+            "/api/v1/requests/",
+            {
+                "vehicle": str(self.vehicle.id),
+                "service": str(self.battery.id),
+                "problem": str(self.dead.id),
+                "customer_latitude": "41.616800",
+                "customer_longitude": "41.636700",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return ServiceRequest.objects.get(id=response.data["id"])
+
+    def cancel(self, request_id, user=None):
+        self.auth(user or self.customer_user)
+        return self.client.post(f"/api/v1/requests/{request_id}/cancel/")
+
+    def test_customer_can_cancel_requested(self):
+        self.mechanic.online = False
+        self.mechanic.save(update_fields=["online", "updated_at"])
+        created = self.create_battery_request()
+        self.assertEqual(created.status, RequestStatus.REQUESTED)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        created.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.CANCELLED)
+        self.assertEqual(created.cancelled_by, "CUSTOMER")
+
+    def test_customer_can_cancel_searching(self):
+        created = self.create_battery_request()
+        self.assertEqual(created.status, RequestStatus.SEARCHING)
+        offer = MechanicRequestOffer.objects.get(
+            request=created, mechanic=self.mechanic, status=OfferStatus.PENDING
+        )
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        created.refresh_from_db()
+        offer.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.CANCELLED)
+        self.assertEqual(offer.status, OfferStatus.EXPIRED)
+        self.auth(self.mechanic_user)
+        inbox = self.client.get("/api/v1/mechanic/offers/")
+        self.assertEqual(inbox.data["count"], 0)
+        accept = self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
+        self.assertEqual(accept.status_code, status.HTTP_409_CONFLICT)
+
+    def test_customer_can_cancel_assigned(self):
+        created = self.create_battery_request()
+        created.assigned_mechanic = self.mechanic
+        created.transition_status(RequestStatus.ASSIGNED, changed_by=self.customer_user)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        created.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.CANCELLED)
+
+    def test_other_customer_cannot_cancel(self):
+        created = self.create_battery_request()
+        response = self.cancel(created.id, user=self.other_customer_user)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        created.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.SEARCHING)
+
+    def test_mechanic_cannot_cancel_customer_request(self):
+        created = self.create_battery_request()
+        self.auth(self.mechanic_user)
+        response = self.client.post(f"/api/v1/requests/{created.id}/cancel/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        created.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.SEARCHING)
+
+    def _drive_to(self, to_status):
+        created = self.create_battery_request()
+        offer = MechanicRequestOffer.objects.get(
+            request=created, mechanic=self.mechanic
+        )
+        self.auth(self.mechanic_user)
+        self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
+        path_by_status = {
+            RequestStatus.ON_THE_WAY: "start-driving",
+            RequestStatus.ARRIVED: "arrive",
+            RequestStatus.IN_PROGRESS: "start-service",
+            RequestStatus.COMPLETED: "complete",
+        }
+        order = [
+            RequestStatus.ON_THE_WAY,
+            RequestStatus.ARRIVED,
+            RequestStatus.IN_PROGRESS,
+            RequestStatus.COMPLETED,
+        ]
+        for step in order:
+            self.client.post(
+                f"/api/v1/mechanic/jobs/{created.id}/{path_by_status[step]}/"
+            )
+            if step == to_status:
+                break
+        created.refresh_from_db()
+        self.assertEqual(created.status, to_status)
+        return created
+
+    def test_cannot_cancel_accepted(self):
+        created = self.create_battery_request()
+        offer = MechanicRequestOffer.objects.get(
+            request=created, mechanic=self.mechanic
+        )
+        self.auth(self.mechanic_user)
+        self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        created.refresh_from_db()
+        self.assertEqual(created.status, RequestStatus.ACCEPTED)
+
+    def test_cannot_cancel_on_the_way(self):
+        created = self._drive_to(RequestStatus.ON_THE_WAY)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_cannot_cancel_arrived(self):
+        created = self._drive_to(RequestStatus.ARRIVED)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_cannot_cancel_in_progress(self):
+        created = self._drive_to(RequestStatus.IN_PROGRESS)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_cannot_cancel_completed(self):
+        created = self._drive_to(RequestStatus.COMPLETED)
+        response = self.cancel(created.id)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_cannot_rate_cancelled_request(self):
+        created = self.create_battery_request()
+        self.cancel(created.id)
+        self.auth(self.customer_user)
+        response = self.client.post(
+            "/api/v1/ratings/",
+            {"request": str(created.id), "stars": 5},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ContactAuthorizationTests(APITestCase):
+    def setUp(self):
+        seed_catalog(service_model=Service, problem_model=ServiceProblem)
+        self.battery = Service.objects.get(code="BATTERY")
+        self.dead = ServiceProblem.objects.get(service=self.battery, code="DEAD_BATTERY")
+        self.customer_user, self.customer = make_customer("+995555000161")
+        self.other_customer_user, self.other_customer = make_customer(
+            "+995555000162", "Other"
+        )
+        self.mechanic_user, self.mechanic = make_mechanic(
+            "+995555000163", services=[self.battery]
+        )
+        self.other_mechanic_user, self.other_mechanic = make_mechanic(
+            "+995555000164", services=[self.battery], name="Nino"
+        )
+        self.vehicle = Vehicle.objects.create(
+            customer=self.customer,
+            make="BMW",
+            model="i8",
+            year=2015,
+            fuel=FuelType.HYBRID,
+        )
+
+    def auth(self, user):
+        self.client.force_authenticate(user)
+
+    def create_and_accept(self):
+        self.auth(self.customer_user)
+        created = self.client.post(
+            "/api/v1/requests/",
+            {
+                "vehicle": str(self.vehicle.id),
+                "service": str(self.battery.id),
+                "problem": str(self.dead.id),
+                "customer_latitude": "41.616800",
+                "customer_longitude": "41.636700",
+            },
+            format="json",
+        )
+        request_id = created.data["id"]
+        offer = MechanicRequestOffer.objects.get(
+            request_id=request_id, mechanic=self.mechanic
+        )
+        self.auth(self.mechanic_user)
+        accepted = self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
+        self.assertEqual(accepted.status_code, status.HTTP_200_OK, accepted.data)
+        return request_id, accepted.data
+
+    def test_pending_offer_does_not_include_customer_phone(self):
+        self.auth(self.customer_user)
+        self.client.post(
+            "/api/v1/requests/",
+            {
+                "vehicle": str(self.vehicle.id),
+                "service": str(self.battery.id),
+                "problem": str(self.dead.id),
+                "customer_latitude": "41.616800",
+                "customer_longitude": "41.636700",
+            },
+            format="json",
+        )
+        self.auth(self.mechanic_user)
+        inbox = self.client.get("/api/v1/mechanic/offers/")
+        offer = inbox.data["results"][0]
+        self.assertNotIn("customer_phone", offer["request"])
+        self.assertNotIn("phone", offer["request"])
+
+    def test_assigned_customer_can_see_mechanic_phone(self):
+        request_id, _accepted = self.create_and_accept()
+        self.auth(self.customer_user)
+        detail = self.client.get(f"/api/v1/requests/{request_id}/")
+        self.assertEqual(
+            detail.data["assigned_mechanic"]["phone"], self.mechanic_user.phone
+        )
+
+    def test_assigned_mechanic_can_see_customer_phone(self):
+        _request_id, accepted = self.create_and_accept()
+        self.assertEqual(
+            accepted["request"]["customer_phone"], self.customer_user.phone
+        )
+        self.auth(self.mechanic_user)
+        active = self.client.get("/api/v1/mechanic/jobs/active/")
+        self.assertEqual(active.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            active.data["request"]["customer_phone"], self.customer_user.phone
+        )
+
+    def test_unrelated_customer_cannot_access_contact(self):
+        request_id, _accepted = self.create_and_accept()
+        self.auth(self.other_customer_user)
+        detail = self.client.get(f"/api/v1/requests/{request_id}/")
+        self.assertEqual(detail.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_unrelated_mechanic_cannot_access_contact(self):
+        request_id, _accepted = self.create_and_accept()
+        self.auth(self.other_mechanic_user)
+        detail = self.client.get(f"/api/v1/requests/{request_id}/")
+        self.assertEqual(detail.status_code, status.HTTP_404_NOT_FOUND)
+        active = self.client.get("/api/v1/mechanic/jobs/active/")
+        self.assertEqual(active.status_code, status.HTTP_204_NO_CONTENT)

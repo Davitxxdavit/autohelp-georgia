@@ -15,6 +15,14 @@ export async function getServiceRequest(id: string): Promise<ApiServiceRequest> 
   return apiRequest<ApiServiceRequest>(`/requests/${id}/`);
 }
 
+export async function cancelServiceRequest(
+  id: string,
+): Promise<ApiServiceRequest> {
+  return apiRequest<ApiServiceRequest>(`/requests/${id}/cancel/`, {
+    method: 'POST',
+  });
+}
+
 /** Django DecimalField max_digits validation: 6 decimal places. Numeric, not a locale string. */
 function toApiCoordinate(value: number | string): number {
   return Number(Number(value).toFixed(6));

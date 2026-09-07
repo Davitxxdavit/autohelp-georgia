@@ -3,6 +3,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { JobScreenScaffold } from '@/components/job/JobScreenScaffold';
+import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { Divider } from '@/components/ui/Divider';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -11,6 +12,7 @@ import { SERVICE_LABELS } from '@/constants/services';
 import { getActiveJobRoute } from '@/features/jobs/routes';
 import { JOB_STATUS_LABELS, vehicleLine } from '@/features/jobs/types';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
+import { openPhoneCall } from '@/lib/phone';
 import { spacing } from '@/theme/spacing';
 
 export default function JobServiceScreen() {
@@ -62,11 +64,26 @@ export default function JobServiceScreen() {
   return (
     <JobScreenScaffold
       footer={
-        <PrimaryButton
-          label={busy ? 'Completing…' : 'Complete service'}
-          disabled={busy}
-          onPress={onComplete}
-        />
+        <>
+          {activeJob.customerPhone ? (
+            <AnimatedPressable
+              accessibilityLabel="Call customer"
+              onPress={() => {
+                void openPhoneCall(activeJob.customerPhone);
+              }}
+              style={styles.contact}
+            >
+              <AppText variant="button" color="textSecondary">
+                Call customer
+              </AppText>
+            </AnimatedPressable>
+          ) : null}
+          <PrimaryButton
+            label={busy ? 'Completing…' : 'Complete service'}
+            disabled={busy}
+            onPress={onComplete}
+          />
+        </>
       }
     >
       <View style={styles.hero}>
@@ -118,5 +135,9 @@ const styles = StyleSheet.create({
   },
   fact: {
     gap: spacing.xxs,
+  },
+  contact: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
   },
 });

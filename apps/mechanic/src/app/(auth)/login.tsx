@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import { obtainTokenPair } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/errors';
 import { setTokenPair } from '@/lib/api/tokens';
@@ -24,6 +25,7 @@ function toE164(raw: string): string {
 export default function MechanicLoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { checkApproval } = useMechanicSession();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,8 @@ export default function MechanicLoginScreen() {
     try {
       const tokens = await obtainTokenPair({ phone: e164, password });
       await setTokenPair(tokens);
-      router.replace('/(app)/(tabs)' as Href);
+      const approved = await checkApproval();
+      router.replace((approved ? '/(app)/(tabs)' : '/pending') as Href);
     } catch (caught) {
       setError(
         isApiError(caught)
@@ -111,6 +114,20 @@ export default function MechanicLoginScreen() {
           void onContinue();
         }}
       />
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Apply as a mechanic"
+        disabled={busy}
+        onPress={() => router.push('/(auth)/register' as Href)}
+        style={styles.switch}
+      >
+        <AppText variant="caption" color="textMuted">
+          Don&apos;t have an account?{' '}
+          <AppText variant="caption" color="primary">
+            Apply as a mechanic
+          </AppText>
+        </AppText>
+      </Pressable>
     </View>
   );
 }
@@ -132,5 +149,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  switch: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
 });

@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { RegisterCustomerResponse, TokenPair } from './types';
+import type { CurrentUser, RegisterCustomerResponse, TokenPair } from './types';
 
 export async function registerCustomer(payload: {
   phone: string;
@@ -33,4 +33,8 @@ export async function refreshTokenPair(refresh: string): Promise<{ access: strin
     auth: false,
     skipRefresh: true,
   });
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  return apiRequest<CurrentUser>('/auth/me/');
 }

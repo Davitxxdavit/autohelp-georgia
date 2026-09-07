@@ -1,8 +1,31 @@
-import { Stack } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+import { Redirect, Stack, type Href } from 'expo-router';
 
+import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import { colors } from '@/theme/colors';
 
 export default function AppLayout() {
+  const { hydrated, isApproved } = useMechanicSession();
+
+  if (!hydrated) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!isApproved) {
+    return <Redirect href={'/pending' as Href} />;
+  }
+
   return (
     <Stack
       screenOptions={{

@@ -42,6 +42,7 @@ export function mapOfferToJob(
     serviceId: asServiceId(request.service_code),
     status,
     customerLabel: request.customer_display_name,
+    customerPhone: request.customer_phone ?? null,
     vehicleTitle: `${vehicle.make} ${vehicle.model}`.trim(),
     vehicleYear: vehicle.year,
     fuel: fuelLabel(vehicle.fuel),

@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -5,13 +6,36 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Surface } from '@/components/ui/Surface';
+import { getCurrentUser } from '@/lib/api/auth';
+import { isApiError } from '@/lib/api/errors';
+import type { CurrentUser } from '@/lib/api/types';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { signOut, resetAppStateForDev } = useSession();
+  const { session, signOut, resetAppStateForDev } = useSession();
+  const [me, setMe] = useState<CurrentUser | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const next = await getCurrentUser();
+      setMe(next);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        isApiError(error)
+          ? error.message
+          : 'Could not load profile.',
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
 
   const onResetSession = () => {
     Alert.alert(
@@ -30,20 +54,29 @@ export default function ProfileScreen() {
     );
   };
 
+  const firstName = me?.first_name?.trim() || 'Customer';
+  const phone = me?.phone || session.phone || '—';
+  const role = me?.role || 'CUSTOMER';
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.xl }]}>
       <AppText variant="h2">პროფილი</AppText>
       <AppText variant="body" color="textSecondary" style={styles.subtitle}>
-        ანგარიში, ენა და პარამეტრები.
+        ანგარიში და პარამეტრები.
       </AppText>
       <Surface elevated padded style={styles.card}>
-        <StatusBadge label="სტუმარი" tone="primary" />
+        <StatusBadge label={role} tone="primary" />
         <AppText variant="bodyMedium" style={styles.title}>
-          ავტორიზაცია მალე დაემატება
+          {firstName}
         </AppText>
         <AppText variant="caption" color="textMuted">
-          პროფილის სრული ფუნქციონალი შემდეგ ეტაპზე განხორციელდება.
+          {phone}
         </AppText>
+        {loadError ? (
+          <AppText variant="caption" color="danger">
+            {loadError}
+          </AppText>
+        ) : null}
         <PrimaryButton
           label="Sign out"
           onPress={() => {

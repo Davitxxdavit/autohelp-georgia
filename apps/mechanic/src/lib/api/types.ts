@@ -30,6 +30,7 @@ export type ApiOfferRequest = {
   problem_code: string;
   problem_label: string;
   customer_display_name: string;
+  customer_phone?: string | null;
   customer_address: string;
   customer_latitude: string;
   customer_longitude: string;
@@ -52,12 +53,39 @@ export type ApiMechanicOffer = {
   request: ApiOfferRequest;
 };
 
+export type ApiMechanicMeService = {
+  id: string;
+  code: string;
+  name: string;
+};
+
 export type ApiMechanicMe = {
   id: string;
   first_name: string;
   last_name: string;
+  phone?: string;
   online: boolean;
   verified: boolean;
   approval_status: string;
   rating_average: string | number;
+  services?: ApiMechanicMeService[];
+};
+
+export type RegisterMechanicResponse = TokenPair & {
+  user: {
+    id: string;
+    phone: string;
+    role: string;
+    first_name: string;
+    approval_status: string;
+    verified: boolean;
+  };
+};
+
+export type ApiService = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
 };

@@ -87,6 +87,14 @@ export type ApiAssignedMechanic = {
   first_name: string;
   verified: boolean;
   rating_average: string | number;
+  phone?: string | null;
+};
+
+export type CurrentUser = {
+  id: string;
+  phone: string;
+  role: string;
+  first_name: string;
 };
 
 export type ApiServiceRequest = {
@@ -98,6 +106,7 @@ export type ApiServiceRequest = {
   problem: string;
   problem_code: string;
   assigned_mechanic: ApiAssignedMechanic | null;
+  customer_phone?: string | null;
   customer_latitude: string;
   customer_longitude: string;
   customer_address: string;

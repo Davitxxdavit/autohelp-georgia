@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,8 @@ import {
   RequestMissingState,
   RequestPollHint,
 } from '@/features/services/flow/RequestSyncNotice';
+import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
+import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import {
   KEYS_FLOW_ROUTES,
   assignedMechanicIdentity,
@@ -56,6 +58,7 @@ export default function KeysFoundScreen() {
     onRequest,
     onCancelled: reset,
   });
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const live = request ?? draft.liveRequest;
   const specialist = assignedMechanicIdentity(live);
@@ -65,21 +68,18 @@ export default function KeysFoundScreen() {
   const estimate = requestEstimateLabel(live) ?? PRICE_CONFIRM_LATER;
 
   const onCancel = () => {
-    Alert.alert(
-      'Leave request?',
-      'You can still find this request in Orders.',
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.replace('/(app)/(tabs)');
-          },
-        },
-      ],
-    );
+    promptCancelRoadsideRequest({
+      requestId: draft.serviceRequestId,
+      busy: cancelBusy,
+      setBusy: setCancelBusy,
+      onCancelled: () => {
+        reset();
+        router.replace('/(app)/(tabs)' as Href);
+      },
+      onStatusChanged: (req) => {
+        setLiveRequest(req);
+      },
+    });
   };
 
   if (notFound) {
@@ -113,13 +113,14 @@ export default function KeysFoundScreen() {
                 label="Track specialist"
                 onPress={() => router.replace('/keys/tracking' as Href)}
               />
+              <CallMechanicButton phone={specialist?.phone} />
               <AnimatedPressable
                 accessibilityLabel="Cancel request"
                 onPress={onCancel}
                 style={styles.cancel}
               >
                 <AppText variant="button" color="textSecondary">
-                  Cancel request
+                  {cancelBusy ? 'Cancelling…' : 'Cancel request'}
                 </AppText>
               </AnimatedPressable>
             </View>

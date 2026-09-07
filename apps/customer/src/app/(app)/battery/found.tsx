@@ -1,5 +1,5 @@
-import { type ReactNode, useCallback, useEffect } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -23,6 +23,8 @@ import {
   RequestMissingState,
   RequestPollHint,
 } from '@/features/services/flow/RequestSyncNotice';
+import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
+import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import {
   BATTERY_FLOW_ROUTES,
   assignedMechanicIdentity,
@@ -84,6 +86,7 @@ export default function BatteryFoundScreen() {
     onRequest,
     onCancelled: reset,
   });
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const live = request ?? draft.liveRequest;
   const mechanic = assignedMechanicIdentity(live);
@@ -95,21 +98,18 @@ export default function BatteryFoundScreen() {
     (option ? formatEstimatedPrice(option) : '—');
 
   const onCancel = () => {
-    Alert.alert(
-      'Leave request?',
-      'You can still find this request in Orders.',
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.replace('/(app)/(tabs)');
-          },
-        },
-      ],
-    );
+    promptCancelRoadsideRequest({
+      requestId: draft.serviceRequestId,
+      busy: cancelBusy,
+      setBusy: setCancelBusy,
+      onCancelled: () => {
+        reset();
+        router.replace('/(app)/(tabs)');
+      },
+      onStatusChanged: (req) => {
+        setLiveRequest(req);
+      },
+    });
   };
 
   if (notFound) {
@@ -143,13 +143,15 @@ export default function BatteryFoundScreen() {
                 label="Track specialist"
                 onPress={() => router.replace('/battery/tracking')}
               />
+              <CallMechanicButton phone={mechanic?.phone} />
               <AnimatedPressable
                 accessibilityLabel="Cancel request"
+                disabled={cancelBusy}
                 onPress={onCancel}
                 style={styles.cancel}
               >
                 <AppText variant="button" color="textSecondary">
-                  Cancel request
+                  {cancelBusy ? 'Cancelling…' : 'Cancel request'}
                 </AppText>
               </AnimatedPressable>
             </View>

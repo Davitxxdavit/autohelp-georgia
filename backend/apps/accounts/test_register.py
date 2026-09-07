@@ -131,3 +131,16 @@ class CustomerRegisterTests(APITestCase):
         )
         self.assertEqual(token.status_code, status.HTTP_200_OK)
         self.assertTrue(token.data.get("access"))
+
+    def test_auth_me_returns_customer_profile(self):
+        created = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {created.data['access']}"
+        )
+        response = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], self.payload["phone"])
+        self.assertEqual(response.data["role"], Role.CUSTOMER)
+        self.assertEqual(response.data["first_name"], "Davit")
+        self.assertNotIn("password", response.data)

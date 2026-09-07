@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -8,7 +8,6 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 
-import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { AppText } from '@/components/ui/AppText';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
@@ -16,6 +15,7 @@ import { MechanicCard } from '@/features/services/battery/components/MechanicCar
 import { TrackingMap } from '@/features/services/battery/components/TrackingMap';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
 import { MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
+import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import {
   RequestMissingState,
   RequestPollHint,
@@ -32,7 +32,6 @@ import type { ApiServiceRequest } from '@/lib/api/types';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
 function Reveal({
@@ -83,13 +82,6 @@ export default function BatteryTrackingScreen() {
   const status = live?.status ?? 'ON_THE_WAY';
   const mechanic = assignedMechanicIdentity(live);
   const statusCopy = trackingStatusCopy(status, 'battery');
-
-  const onContact = () => {
-    Alert.alert(
-      'Contact specialist',
-      'Calling will be available in a later build.',
-    );
-  };
 
   if (notFound) {
     return (
@@ -152,15 +144,7 @@ export default function BatteryTrackingScreen() {
             {mechanic ? (
               <MechanicCard mechanic={mechanic} />
             ) : null}
-            <AnimatedPressable
-              accessibilityLabel="Contact specialist"
-              onPress={onContact}
-              style={styles.contact}
-            >
-              <AppText variant="button" color="primary">
-                Contact specialist
-              </AppText>
-            </AnimatedPressable>
+            <CallMechanicButton phone={mechanic?.phone} />
           </View>
         </Reveal>
       </BatteryScreenScaffold>
@@ -192,13 +176,5 @@ const styles = StyleSheet.create({
   },
   specialist: {
     gap: spacing.sm,
-  },
-  contact: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
 });

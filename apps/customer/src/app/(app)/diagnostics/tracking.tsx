@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/AppText';
 import { MechanicCard } from '@/features/services/flow/MechanicCard';
 import { Reveal } from '@/features/services/flow/Reveal';
+import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
 import { TrackingMap } from '@/features/services/flow/TrackingMap';
 import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
@@ -105,6 +106,7 @@ export default function DiagnosticsTrackingScreen() {
 
         <Reveal delayMs={timing.slow}>
           {specialist ? <MechanicCard mechanic={specialist} /> : null}
+          <CallMechanicButton phone={specialist?.phone} />
         </Reveal>
       </ServiceScreenScaffold>
     </View>

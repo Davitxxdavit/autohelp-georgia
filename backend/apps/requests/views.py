@@ -1,14 +1,32 @@
+from django.db import transaction
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from apps.accounts.models import Role
 from apps.common.permissions import IsCustomer
-from apps.common.schema import FORBIDDEN, NOT_FOUND, UNAUTHORIZED, VALIDATION_ERROR
-from apps.requests.models import ServiceRequest
+from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED, VALIDATION_ERROR
+from apps.requests.exceptions import Conflict
+from apps.requests.models import (
+    CancelledBy,
+    MechanicRequestOffer,
+    OfferStatus,
+    RequestStatus,
+    ServiceRequest,
+)
 from apps.requests.serializers import (
     ServiceRequestCreateSerializer,
     ServiceRequestSerializer,
+)
+
+CUSTOMER_CANCELABLE_STATUSES = (
+    RequestStatus.REQUESTED,
+    RequestStatus.SEARCHING,
+    RequestStatus.ASSIGNED,
 )
 
 
@@ -91,10 +109,12 @@ class ServiceRequestViewSet(
         user = self.request.user
         qs = ServiceRequest.objects.select_related(
             "customer",
+            "customer__user",
             "vehicle",
             "service",
             "problem",
             "assigned_mechanic",
+            "assigned_mechanic__user",
         ).prefetch_related("status_history")
         if user.is_staff:
             return qs
@@ -105,7 +125,7 @@ class ServiceRequestViewSet(
         return qs.none()
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action in ("create", "cancel"):
             return [IsAuthenticated(), IsCustomer()]
         return [IsAuthenticated()]
 
@@ -118,3 +138,56 @@ class ServiceRequestViewSet(
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    @extend_schema(
+        tags=["Requests"],
+        summary="Cancel a service request",
+        description=(
+            "Customer owner only. Allowed while the request is REQUESTED, "
+            "SEARCHING, or ASSIGNED. Cancellation after the mechanic has "
+            "accepted or started driving is rejected with 409.\n\n"
+            "Pending mechanic offers are expired so they can no longer be accepted."
+        ),
+        request=None,
+        responses={
+            200: ServiceRequestSerializer,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+            404: NOT_FOUND,
+            409: CONFLICT,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        customer = request.user.customer_profile
+        with transaction.atomic():
+            try:
+                service_request = ServiceRequest.objects.select_for_update().get(
+                    pk=pk,
+                    customer=customer,
+                )
+            except ServiceRequest.DoesNotExist as exc:
+                raise NotFound() from exc
+
+            if service_request.status not in CUSTOMER_CANCELABLE_STATUSES:
+                raise Conflict(
+                    f"Cannot cancel a request in {service_request.status} status."
+                )
+
+            service_request.cancelled_by = CancelledBy.CUSTOMER
+            service_request.transition_status(
+                RequestStatus.CANCELLED,
+                changed_by=request.user,
+                note="Cancelled by customer",
+            )
+            now = timezone.now()
+            MechanicRequestOffer.objects.filter(
+                request=service_request,
+                status=OfferStatus.PENDING,
+            ).update(status=OfferStatus.EXPIRED, responded_at=now)
+
+        service_request = self.get_queryset().get(pk=service_request.pk)
+        serializer = ServiceRequestSerializer(
+            service_request, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)

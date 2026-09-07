@@ -14,6 +14,7 @@ export type MechanicIdentity = {
   name: string;
   rating: number;
   verified: boolean;
+  phone?: string | null;
   distanceKm?: number;
   etaMinutes?: number;
 };

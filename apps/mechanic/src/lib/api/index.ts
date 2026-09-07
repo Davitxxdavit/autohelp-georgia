@@ -1,8 +1,9 @@
-export { obtainTokenPair } from './auth';
+export { obtainTokenPair, registerMechanic } from './auth';
 export { apiGetList, apiRequest } from './client';
 export { getApiBaseUrl, isApiConfigured } from './config';
 export { obtainDevelopmentJwt } from './devAuth';
 export { ApiError, isApiError } from './errors';
+export { isMechanicApproved } from './approval';
 export {
   acceptOffer,
   declineOffer,
@@ -13,4 +14,9 @@ export {
   transitionJob,
 } from './mechanic';
 export { clearTokens, getAccessToken, setTokenPair } from './tokens';
-export type { ApiMechanicMe, ApiMechanicOffer, TokenPair } from './types';
+export type {
+  ApiMechanicMe,
+  ApiMechanicOffer,
+  RegisterMechanicResponse,
+  TokenPair,
+} from './types';

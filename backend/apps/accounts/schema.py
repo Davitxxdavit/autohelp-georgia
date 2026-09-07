@@ -38,3 +38,35 @@ class CustomerRegisterResponseSerializer(serializers.Serializer):
     access = serializers.CharField()
     refresh = serializers.CharField()
     user = CustomerRegisterUserSerializer()
+
+
+class MechanicRegisterRequestSerializer(serializers.Serializer):
+    phone = serializers.CharField(help_text="E.164 phone number, e.g. +995555123456.")
+    password = serializers.CharField(write_only=True)
+    first_name = serializers.CharField()
+    services = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="Active catalog service IDs.",
+    )
+
+
+class MechanicRegisterUserSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    phone = serializers.CharField()
+    role = serializers.CharField()
+    first_name = serializers.CharField()
+    approval_status = serializers.CharField()
+    verified = serializers.BooleanField()
+
+
+class MechanicRegisterResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = MechanicRegisterUserSerializer()
+
+
+class CurrentUserSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    phone = serializers.CharField()
+    role = serializers.CharField()
+    first_name = serializers.CharField()

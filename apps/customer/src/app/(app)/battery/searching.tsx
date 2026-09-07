@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/AppText';
+import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
 import { SearchingVisual } from '@/features/services/battery/components/SearchingVisual';
 import { useBatteryBottomPad } from '@/features/services/battery/components/BatteryScreenScaffold';
@@ -25,6 +26,7 @@ import {
 } from '@/features/services/flow/RequestSyncNotice';
 import { BATTERY_FLOW_ROUTES } from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
+import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import type { ApiServiceRequest } from '@/lib/api/types';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
@@ -98,6 +100,22 @@ export default function BatterySearchingScreen() {
     onRequest,
     onCancelled: reset,
   });
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  const onCancel = () => {
+    promptCancelRoadsideRequest({
+      requestId: draft.serviceRequestId,
+      busy: cancelBusy,
+      setBusy: setCancelBusy,
+      onCancelled: () => {
+        reset();
+        router.replace('/(app)/(tabs)');
+      },
+      onStatusChanged: (req) => {
+        setLiveRequest(req);
+      },
+    });
+  };
 
   if (notFound) {
     return (
@@ -148,6 +166,16 @@ export default function BatterySearchingScreen() {
               Usually takes less than a minute
             </AppText>
             <RequestPollHint pollError={pollError} />
+            <AnimatedPressable
+              accessibilityLabel="Cancel request"
+              disabled={cancelBusy}
+              onPress={onCancel}
+              style={styles.cancel}
+            >
+              <AppText variant="button" color="textSecondary">
+                {cancelBusy ? 'Cancelling…' : 'Cancel request'}
+              </AppText>
+            </AnimatedPressable>
           </View>
         </View>
       </FadeIn>
@@ -185,5 +213,9 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
+  },
+  cancel: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
   },
 });

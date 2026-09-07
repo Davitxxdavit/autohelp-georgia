@@ -17,6 +17,7 @@ import {
   type JobStatus,
   type MockJob,
 } from '@/features/jobs/types';
+import { isMechanicApproved } from '@/lib/api/approval';
 import { isApiError } from '@/lib/api/errors';
 import {
   acceptOffer,
@@ -30,26 +31,34 @@ import {
 } from '@/lib/api/mechanic';
 import { clearTokens, getAccessToken } from '@/lib/api/tokens';
 import type { ApiMechanicMe, ApiMechanicOffer } from '@/lib/api/types';
+import { SERVICE_IDS, type ServiceId } from '@/constants/services';
 
-import { MOCK_MECHANIC, type MockMechanicProfile } from './mock';
+import { type MockMechanicProfile } from './mock';
 
 const INITIAL_PROFILE: MockMechanicProfile = {
   id: '',
   name: '',
+  firstName: '',
+  phone: '',
   rating: 0,
   verified: false,
   online: false,
-  supportedServices: MOCK_MECHANIC.supportedServices,
+  approvalStatus: 'PENDING',
+  supportedServices: [],
+  services: [],
 };
 
 type MechanicSessionValue = {
   profile: MockMechanicProfile;
+  hydrated: boolean;
+  isApproved: boolean;
   incomingJob: MockJob | null;
   activeJob: MockJob | null;
   availabilityBusy: boolean;
   getJob: (id: string) => MockJob | undefined;
   setOnline: (online: boolean) => Promise<boolean>;
   refreshIncoming: () => Promise<void>;
+  checkApproval: () => Promise<boolean>;
   acceptJob: (id: string) => Promise<MockJob | null>;
   declineJob: (id: string) => Promise<boolean>;
   updateJobStatus: (jobId: string, status: JobStatus) => Promise<MockJob | null>;
@@ -70,13 +79,23 @@ function actionForStatus(status: JobStatus): MechanicJobAction | null {
 function mapMeToProfile(me: ApiMechanicMe): MockMechanicProfile {
   const name = [me.first_name, me.last_name].filter(Boolean).join(' ').trim();
   const rating = Number.parseFloat(String(me.rating_average));
+  const services = me.services ?? [];
+  const supportedServices = services
+    .map((item) => item.code)
+    .filter((code): code is ServiceId =>
+      (SERVICE_IDS as readonly string[]).includes(code),
+    );
   return {
     id: me.id,
-    name: name || 'Mechanic',
+    name: name || me.first_name || 'Mechanic',
+    firstName: me.first_name,
+    phone: me.phone ?? '',
     online: me.online,
     verified: me.verified,
+    approvalStatus: me.approval_status,
     rating: Number.isFinite(rating) ? rating : 0,
-    supportedServices: MOCK_MECHANIC.supportedServices,
+    supportedServices,
+    services,
   };
 }
 
@@ -89,6 +108,8 @@ const OFFER_POLL_INTERVAL_MS = 2500;
 
 export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<MockMechanicProfile>(INITIAL_PROFILE);
+  const [hydrated, setHydrated] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const [activeJob, setActiveJob] = useState<MockJob | null>(null);
   const [pendingOffer, setPendingOffer] = useState<ApiMechanicOffer | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
@@ -97,9 +118,27 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   const pollQueuedRef = useRef(false);
 
   const incomingJob = useMemo(() => {
-    if (!profile.online || activeJob || !pendingOffer) return null;
+    if (!isApproved || !profile.online || activeJob || !pendingOffer) return null;
     return mapOfferToJob(pendingOffer, 'ASSIGNED');
-  }, [activeJob, pendingOffer, profile.online]);
+  }, [activeJob, isApproved, pendingOffer, profile.online]);
+
+  const applyMe = useCallback((me: ApiMechanicMe) => {
+    setProfile(mapMeToProfile(me));
+    const approved = isMechanicApproved(me);
+    setIsApproved(approved);
+    return approved;
+  }, []);
+
+  const checkApproval = useCallback(async (): Promise<boolean> => {
+    const me = await getMechanicMe();
+    const approved = applyMe(me);
+    setHydrated(true);
+    if (!approved) {
+      setPendingOffer(null);
+      setActiveJob(null);
+    }
+    return approved;
+  }, [applyMe]);
 
   const refreshIncoming = useCallback(async () => {
     if (!(await getAccessToken())) return;
@@ -112,7 +151,13 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       do {
         pollQueuedRef.current = false;
         const me = await getMechanicMe();
-        setProfile(mapMeToProfile(me));
+        const approved = applyMe(me);
+        setHydrated(true);
+        if (!approved) {
+          setPendingOffer(null);
+          setActiveJob(null);
+          return;
+        }
         const [offers, active] = await Promise.all([
           me.online ? listPendingOffers() : Promise.resolve([] as ApiMechanicOffer[]),
           getActiveJob(),
@@ -136,6 +181,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
         });
       } while (pollQueuedRef.current);
     } catch (error) {
+      setHydrated(true);
       if (__DEV__) {
         console.warn('[AutoHelp Mechanic] refresh failed', error);
         if (isApiError(error)) {
@@ -145,15 +191,40 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     } finally {
       pollInFlightRef.current = false;
     }
-  }, []);
+  }, [applyMe]);
 
   useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!mounted) return;
+      if (!token) {
+        setHydrated(true);
+        setIsApproved(false);
+        return;
+      }
+      try {
+        await checkApproval();
+      } catch {
+        if (mounted) {
+          setHydrated(true);
+          setIsApproved(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [checkApproval]);
+
+  useEffect(() => {
+    if (!hydrated || !isApproved) return;
     void refreshIncoming();
     const id = setInterval(() => {
       void refreshIncoming();
     }, OFFER_POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [refreshIncoming]);
+  }, [hydrated, isApproved, refreshIncoming]);
 
   const getJob = useCallback(
     (id: string): MockJob | undefined => {
@@ -174,7 +245,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       setAvailabilityBusy(true);
       try {
         const me = await patchMechanicMe({ online });
-        setProfile(mapMeToProfile(me));
+        applyMe(me);
         await refreshIncoming();
         return true;
       } catch (error) {
@@ -191,7 +262,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
         setAvailabilityBusy(false);
       }
     },
-    [profile.online, refreshIncoming],
+    [applyMe, profile.online, refreshIncoming],
   );
 
   const acceptJob = useCallback(async (id: string): Promise<MockJob | null> => {
@@ -278,17 +349,22 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     setProfile(INITIAL_PROFILE);
     setActiveJob(null);
     setPendingOffer(null);
+    setIsApproved(false);
+    setHydrated(true);
   }, []);
 
   const value = useMemo<MechanicSessionValue>(
     () => ({
       profile,
+      hydrated,
+      isApproved,
       incomingJob,
       activeJob,
       availabilityBusy,
       getJob,
       setOnline,
       refreshIncoming,
+      checkApproval,
       acceptJob,
       declineJob,
       updateJobStatus,
@@ -299,10 +375,13 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       acceptJob,
       activeJob,
       availabilityBusy,
+      checkApproval,
       declineJob,
       finishJob,
       getJob,
+      hydrated,
       incomingJob,
+      isApproved,
       profile,
       refreshIncoming,
       setOnline,

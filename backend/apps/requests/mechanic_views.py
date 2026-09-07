@@ -8,7 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.permissions import IsMechanic
+from apps.accounts.models import MechanicProfile
+from apps.common.permissions import IsApprovedMechanic, IsMechanic
 from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED
 from apps.requests.exceptions import Conflict
 from apps.requests.matching import ACTIVE_JOB_STATUSES, issue_offers_for_unmatched_requests
@@ -37,14 +38,24 @@ def _mechanic_or_none(user):
     return user.mechanic_profile
 
 
+def _mechanic_with_relations(mechanic):
+    return (
+        MechanicProfile.objects.select_related("user")
+        .prefetch_related("services")
+        .get(pk=mechanic.pk)
+    )
+
+
 def _offer_queryset(mechanic):
     return MechanicRequestOffer.objects.filter(mechanic=mechanic).select_related(
         "request",
         "request__customer",
+        "request__customer__user",
         "request__vehicle",
         "request__service",
         "request__problem",
         "mechanic",
+        "mechanic__user",
     )
 
 
@@ -64,7 +75,7 @@ def _offer_queryset(mechanic):
     ),
 )
 class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, IsMechanic]
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
     serializer_class = MechanicOfferSerializer
 
     def get_queryset(self):
@@ -168,7 +179,10 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             offer.request = service_request
         offer.refresh_from_db()
         offer = _offer_queryset(mechanic).get(pk=offer.pk)
-        return Response(serialize_mechanic_offer(offer), status=status.HTTP_200_OK)
+        return Response(
+            serialize_mechanic_offer(offer, include_customer_phone=True),
+            status=status.HTTP_200_OK,
+        )
 
     @extend_schema(
         tags=["Mechanic"],
@@ -211,7 +225,7 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 
 class MechanicActiveJobView(APIView):
-    permission_classes = [IsAuthenticated, IsMechanic]
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
 
     @extend_schema(
         tags=["Mechanic"],
@@ -242,11 +256,14 @@ class MechanicActiveJobView(APIView):
         )
         if offer is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(serialize_mechanic_offer(offer))
+        return Response(serialize_mechanic_offer(offer, include_customer_phone=True))
 
 
 class MechanicMeView(APIView):
-    permission_classes = [IsAuthenticated, IsMechanic]
+    def get_permissions(self):
+        if self.request.method.upper() == "PATCH":
+            return [IsAuthenticated(), IsMechanic(), IsApprovedMechanic()]
+        return [IsAuthenticated(), IsMechanic()]
 
     @extend_schema(
         tags=["Mechanic"],
@@ -265,7 +282,7 @@ class MechanicMeView(APIView):
         mechanic = _mechanic_or_none(request.user)
         if mechanic is None:
             raise NotFound()
-        return Response(serialize_mechanic_me(mechanic))
+        return Response(serialize_mechanic_me(_mechanic_with_relations(mechanic)))
 
     @extend_schema(
         tags=["Mechanic"],
@@ -297,7 +314,7 @@ class MechanicMeView(APIView):
         profile = set_mechanic_online(
             mechanic, online=serializer.validated_data["online"]
         )
-        return Response(serialize_mechanic_me(profile))
+        return Response(serialize_mechanic_me(_mechanic_with_relations(profile)))
 
 
 def _job_transition_schema(*, summary: str, description: str):
@@ -319,7 +336,7 @@ def _job_transition_schema(*, summary: str, description: str):
 
 
 class MechanicJobTransitionView(APIView):
-    permission_classes = [IsAuthenticated, IsMechanic]
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
     to_status = None
 
     def post(self, request, request_id):
@@ -333,7 +350,10 @@ class MechanicJobTransitionView(APIView):
             to_status=self.to_status,
         )
         offer = _offer_queryset(mechanic).get(pk=offer.pk)
-        return Response(serialize_mechanic_offer(offer), status=status.HTTP_200_OK)
+        return Response(
+            serialize_mechanic_offer(offer, include_customer_phone=True),
+            status=status.HTTP_200_OK,
+        )
 
 
 @_job_transition_schema(

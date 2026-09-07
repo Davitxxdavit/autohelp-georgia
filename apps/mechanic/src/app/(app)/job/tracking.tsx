@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { JobScreenScaffold } from '@/components/job/JobScreenScaffold';
@@ -23,6 +23,7 @@ import {
   type MockJob,
 } from '@/features/jobs/types';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
+import { openPhoneCall } from '@/lib/phone';
 import { timing } from '@/animations/timing';
 import { spacing } from '@/theme/spacing';
 
@@ -145,10 +146,8 @@ export default function JobTrackingScreen() {
   }, [activeJob, router]);
 
   const onContact = () => {
-    Alert.alert(
-      'Contact customer',
-      'Calling will be available when phone integration is connected.',
-    );
+    if (!activeJob?.customerPhone) return;
+    void openPhoneCall(activeJob.customerPhone);
   };
 
   const onPrimary = () => {
@@ -200,15 +199,17 @@ export default function JobTrackingScreen() {
               disabled={busy}
               onPress={onPrimary}
             />
-            <AnimatedPressable
-              accessibilityLabel="Contact customer"
-              onPress={onContact}
-              style={styles.contact}
-            >
-              <AppText variant="button" color="textSecondary">
-                Contact customer
-              </AppText>
-            </AnimatedPressable>
+            {activeJob.customerPhone ? (
+              <AnimatedPressable
+                accessibilityLabel="Call customer"
+                onPress={onContact}
+                style={styles.contact}
+              >
+                <AppText variant="button" color="textSecondary">
+                  Call customer
+                </AppText>
+              </AnimatedPressable>
+            ) : null}
           </>
         ) : null
       }

@@ -24,6 +24,7 @@ export type MockJob = {
   serviceId: ServiceId;
   status: JobStatus;
   customerLabel: string;
+  customerPhone?: string | null;
   vehicleTitle: string;
   vehicleYear: number;
   fuel: string;

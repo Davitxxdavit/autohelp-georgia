@@ -1,4 +1,4 @@
-export { obtainTokenPair, refreshTokenPair, registerCustomer } from './auth';
+export { obtainTokenPair, refreshTokenPair, registerCustomer, getCurrentUser } from './auth';
 export { apiGetList, apiRequest, unwrapList } from './client';
 export { getApiBaseUrl, isApiConfigured, requireApiBaseUrl } from './config';
 export { obtainDevelopmentJwt } from './devAuth';
@@ -16,6 +16,7 @@ export {
 export {
   createRoadsideRequest,
   createServiceRequest,
+  cancelServiceRequest,
   getServiceRequest,
   listServiceRequests,
   listServiceRequestsFirstPage,
@@ -37,6 +38,7 @@ export type {
   ApiServiceRequest,
   ApiVehicle,
   CreateServiceRequestBody,
+  CurrentUser,
   TokenPair,
 } from './types';
 export {

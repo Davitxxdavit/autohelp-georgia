@@ -18,7 +18,12 @@ class MechanicOfferRequestSerializer(serializers.Serializer):
     problem_code = serializers.CharField()
     problem_label = serializers.CharField()
     customer_display_name = serializers.CharField(
-        help_text="First name only. Phone and email are not exposed."
+        help_text="First name only. Phone is included only on accepted/active jobs."
+    )
+    customer_phone = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Customer phone. Present only on the assigned mechanic's accepted job.",
     )
     customer_address = serializers.CharField()
     customer_latitude = serializers.CharField()
@@ -40,10 +45,17 @@ class MechanicOfferRequestSerializer(serializers.Serializer):
     vehicle = MechanicOfferVehicleSerializer()
 
 
+class MechanicMeServiceSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+
+
 class MechanicMeSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
+    phone = serializers.CharField()
     online = serializers.BooleanField(
         help_text=(
             "Controls new offer eligibility only. Going offline does not "
@@ -53,6 +65,7 @@ class MechanicMeSerializer(serializers.Serializer):
     verified = serializers.BooleanField()
     approval_status = serializers.CharField()
     rating_average = serializers.DecimalField(max_digits=3, decimal_places=2)
+    services = MechanicMeServiceSerializer(many=True)
 
 
 class MechanicMeUpdateSerializer(serializers.Serializer):
@@ -67,12 +80,14 @@ class MechanicOfferSerializer(serializers.Serializer):
     request = MechanicOfferRequestSerializer()
 
 
-def serialize_mechanic_offer(offer: MechanicRequestOffer) -> dict:
+def serialize_mechanic_offer(
+    offer: MechanicRequestOffer, *, include_customer_phone: bool = False
+) -> dict:
     request = offer.request
     vehicle = request.vehicle
     customer = request.customer
     amount = request.estimated_price_amount
-    return {
+    payload = {
         "id": str(offer.id),
         "status": offer.status,
         "created_at": offer.created_at,
@@ -104,15 +119,28 @@ def serialize_mechanic_offer(offer: MechanicRequestOffer) -> dict:
             },
         },
     }
+    if include_customer_phone:
+        customer_user = getattr(customer, "user", None)
+        payload["request"]["customer_phone"] = (
+            customer_user.phone if customer_user is not None else None
+        )
+    return payload
 
 
 def serialize_mechanic_me(profile) -> dict:
+    services = [
+        {"id": str(service.id), "code": service.code, "name": service.name}
+        for service in profile.services.all()
+    ]
+    user = getattr(profile, "user", None)
     return {
         "id": str(profile.id),
         "first_name": profile.first_name,
         "last_name": profile.last_name,
+        "phone": user.phone if user is not None else "",
         "online": profile.online,
         "verified": profile.verified,
         "approval_status": profile.approval_status,
         "rating_average": profile.rating_average,
+        "services": services,
     }

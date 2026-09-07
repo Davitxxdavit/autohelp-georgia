@@ -85,6 +85,7 @@ export function assignedMechanicIdentity(
     name: mechanic.first_name.trim() || 'Assigned mechanic',
     rating: Number.isFinite(rating) ? rating : Number.NaN,
     verified: mechanic.verified,
+    phone: mechanic.phone ?? null,
   };
 }
 

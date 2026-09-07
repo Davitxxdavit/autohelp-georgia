@@ -2,26 +2,26 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect, type Href } from 'expo-router';
 
+import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import { getAccessToken } from '@/lib/api/tokens';
 import { colors } from '@/theme/colors';
 
 export default function Index() {
-  const [ready, setReady] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const { hydrated, isApproved } = useMechanicSession();
+  const [hasToken, setHasToken] = useState<boolean | null>(null);
 
   useEffect(() => {
     let mounted = true;
     void getAccessToken().then((token) => {
       if (!mounted) return;
-      setSignedIn(Boolean(token));
-      setReady(true);
+      setHasToken(Boolean(token));
     });
     return () => {
       mounted = false;
     };
   }, []);
 
-  if (!ready) {
+  if (!hydrated || hasToken === null) {
     return (
       <View
         style={{
@@ -36,8 +36,12 @@ export default function Index() {
     );
   }
 
-  if (!signedIn) {
+  if (!hasToken) {
     return <Redirect href={'/(auth)/login' as Href} />;
+  }
+
+  if (!isApproved) {
+    return <Redirect href={'/pending' as Href} />;
   }
 
   return <Redirect href={'/(app)/(tabs)' as Href} />;

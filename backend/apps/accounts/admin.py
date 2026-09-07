@@ -2,7 +2,13 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
-from .models import CustomerProfile, MechanicLocation, MechanicProfile, User
+from .models import (
+    ApprovalStatus,
+    CustomerProfile,
+    MechanicLocation,
+    MechanicProfile,
+    User,
+)
 
 
 class UserCreationFormPhone(UserCreationForm):
@@ -73,16 +79,51 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 class MechanicProfileAdmin(admin.ModelAdmin):
     list_display = (
         "first_name",
-        "last_name",
+        "phone",
+        "approval_status",
         "verified",
         "online",
-        "approval_status",
-        "rating_average",
-        "rating_count",
+        "service_list",
+        "created_at",
     )
-    list_filter = ("verified", "online", "approval_status")
+    list_filter = ("approval_status", "verified", "online")
     search_fields = ("first_name", "last_name", "user__phone")
     filter_horizontal = ("services",)
+    readonly_fields = ("created_at", "updated_at", "rating_average", "rating_count")
+    actions = ("approve_selected_mechanics", "mark_selected_mechanics_unapproved")
+    list_select_related = ("user",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("services")
+
+    @admin.display(description="Phone", ordering="user__phone")
+    def phone(self, obj):
+        return obj.user.phone
+
+    @admin.display(description="Services")
+    def service_list(self, obj):
+        names = [service.name for service in obj.services.all()]
+        return ", ".join(names) if names else "—"
+
+    @admin.action(description="Approve selected mechanics")
+    def approve_selected_mechanics(self, request, queryset):
+        updated = queryset.update(
+            approval_status=ApprovalStatus.APPROVED,
+            verified=True,
+        )
+        self.message_user(request, f"Approved {updated} mechanic(s).")
+
+    @admin.action(description="Mark selected mechanics unapproved")
+    def mark_selected_mechanics_unapproved(self, request, queryset):
+        updated = queryset.update(
+            approval_status=ApprovalStatus.PENDING,
+            verified=False,
+            online=False,
+        )
+        self.message_user(
+            request,
+            f"Marked {updated} mechanic(s) unapproved and offline.",
+        )
 
 
 @admin.register(MechanicLocation)

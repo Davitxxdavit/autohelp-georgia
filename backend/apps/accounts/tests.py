@@ -53,6 +53,13 @@ class SchemaEndpointTests(APITestCase):
         self.assertIn("password", properties)
         self.assertIn("first_name", properties)
 
+    def test_mechanic_register_schema_exists(self):
+        response = self.client.get("/api/schema/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        schema = yaml.safe_load(response.content)
+        self.assertIn("/api/v1/auth/mechanic/register/", schema["paths"])
+        self.assertIn("/api/v1/auth/me/", schema["paths"])
+
 
 class PhoneTokenObtainTests(APITestCase):
     def setUp(self):

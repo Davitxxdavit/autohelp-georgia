@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.accounts.models import Role
 from apps.requests.models import (
     RequestStatus,
     ServiceRequest,
@@ -13,12 +14,16 @@ from apps.vehicles.serializers import VehicleSerializer
 
 
 class AssignedMechanicPublicSerializer(serializers.Serializer):
-    """Safe public mechanic identity for customers. No phone or email."""
+    """Mechanic identity for the owning customer. Phone only when assigned."""
 
     id = serializers.UUIDField()
     first_name = serializers.CharField()
     verified = serializers.BooleanField()
     rating_average = serializers.DecimalField(max_digits=3, decimal_places=2)
+    phone = serializers.CharField(
+        required=False,
+        help_text="Assigned mechanic phone. Included only for the owning customer.",
+    )
 
 
 class StatusHistorySerializer(serializers.ModelSerializer):
@@ -32,10 +37,9 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     vehicle = VehicleSerializer(read_only=True)
     service_code = serializers.CharField(source="service.code", read_only=True)
     problem_code = serializers.CharField(source="problem.code", read_only=True)
-    assigned_mechanic = AssignedMechanicPublicSerializer(
-        read_only=True,
-        allow_null=True,
-        help_text="Assigned mechanic public profile, or null. Phone is never included.",
+    assigned_mechanic = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField(
+        help_text="Customer phone. Included only for the assigned mechanic.",
     )
     status_history = StatusHistorySerializer(many=True, read_only=True)
 
@@ -50,6 +54,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             "problem",
             "problem_code",
             "assigned_mechanic",
+            "customer_phone",
             "customer_latitude",
             "customer_longitude",
             "customer_address",
@@ -80,6 +85,50 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                 "help_text": "Always true in Phase 1. Not settled payment.",
             },
         }
+
+    def _viewer_is_owner_customer(self, obj) -> bool:
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated or user.role != Role.CUSTOMER:
+            return False
+        profile = getattr(user, "customer_profile", None)
+        return profile is not None and obj.customer_id == profile.id
+
+    def _viewer_is_assigned_mechanic(self, obj) -> bool:
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated or user.role != Role.MECHANIC:
+            return False
+        profile = getattr(user, "mechanic_profile", None)
+        return (
+            profile is not None
+            and obj.assigned_mechanic_id is not None
+            and obj.assigned_mechanic_id == profile.id
+        )
+
+    def get_assigned_mechanic(self, obj):
+        mechanic = obj.assigned_mechanic
+        if mechanic is None:
+            return None
+        payload = {
+            "id": str(mechanic.id),
+            "first_name": mechanic.first_name,
+            "verified": mechanic.verified,
+            "rating_average": mechanic.rating_average,
+        }
+        if self._viewer_is_owner_customer(obj):
+            mechanic_user = getattr(mechanic, "user", None)
+            if mechanic_user is not None:
+                payload["phone"] = mechanic_user.phone
+        return payload
+
+    def get_customer_phone(self, obj):
+        if not self._viewer_is_assigned_mechanic(obj):
+            return None
+        customer_user = getattr(obj.customer, "user", None)
+        if customer_user is None:
+            return None
+        return customer_user.phone
 
 
 class ServiceRequestCreateSerializer(serializers.ModelSerializer):
