@@ -18,4 +18,20 @@ export function formatDurationSeconds(seconds: number | null | undefined): strin
   return `${hours} hr ${minutes} min`;
 }
 
+export function formatArrivalIn(seconds: number | null | undefined): string | null {
+  const duration = formatDurationSeconds(seconds);
+  if (!duration) return null;
+  return `Arrives in ~${duration}`;
+}
+
+export function formatDistanceAway(meters: number | null | undefined): string | null {
+  const distance = formatDistanceMeters(meters);
+  if (!distance) return null;
+  return `${distance} away`;
+}
+
 export const ETA_UNAVAILABLE = 'ETA unavailable';
+export const ETA_CALCULATING = 'Calculating arrival time…';
+export const ETA_STALE = 'Updating mechanic location…';
+export const ETA_PREPARING = 'Mechanic is preparing to leave';
+export const ETA_ARRIVED = 'Mechanic has arrived';

@@ -2,7 +2,15 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { TRACKING, type GeoPoint } from '@/features/maps/constants';
-import { ETA_UNAVAILABLE, formatDistanceMeters, formatDurationSeconds } from '@/features/maps/format';
+import {
+  ETA_ARRIVED,
+  ETA_CALCULATING,
+  ETA_PREPARING,
+  ETA_STALE,
+  ETA_UNAVAILABLE,
+  formatArrivalIn,
+  formatDistanceAway,
+} from '@/features/maps/format';
 import { isLocationFresh, parseGeoPoint } from '@/features/maps/geo';
 import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import { useTripRoute } from '@/features/maps/useTripRoute';
@@ -26,6 +34,15 @@ function routePoints(route: { coordinates?: { latitude: string; longitude: strin
     .filter((point): point is GeoPoint => point != null);
 }
 
+function isMechanicFixStale(
+  updatedAt: string | null | undefined,
+  hasPoint: boolean,
+): boolean {
+  if (!hasPoint) return false;
+  if (!updatedAt) return false;
+  return !isLocationFresh(updatedAt, TRACKING.LOCATION_STALE_MS);
+}
+
 export function TripLivePanel({
   request,
   customerPoint,
@@ -39,53 +56,61 @@ export function TripLivePanel({
   const mechanicPoint = mechanicPointFromRequest(request);
   const onTheWay = status === 'ON_THE_WAY';
   const arrived = status === 'ARRIVED';
-  const { route } = useTripRoute({
+  const accepted = status === 'ACCEPTED' || status === 'ASSIGNED';
+  const { route, unavailable, loading } = useTripRoute({
     requestId: request?.id,
     enabled: onTheWay && Boolean(mechanicPoint),
     origin: mechanicPoint,
   });
-  const stale =
-    onTheWay &&
-    !isLocationFresh(
-      request?.assigned_mechanic?.location_updated_at,
-      TRACKING.LOCATION_STALE_MS,
-    );
+  const stale = onTheWay && isMechanicFixStale(
+    request?.assigned_mechanic?.location_updated_at,
+    Boolean(mechanicPoint),
+  );
   const copy = trackingStatusCopy(status, kind);
-  const distance = route?.available
-    ? formatDistanceMeters(route.distance_meters)
+  const arrival = route?.available
+    ? formatArrivalIn(route.duration_seconds)
     : null;
-  const eta =
-    route?.available && !stale
-      ? formatDurationSeconds(route.duration_seconds)
-      : null;
+  const distanceAway = route?.available
+    ? formatDistanceAway(route.distance_meters)
+    : null;
 
-  let title = arrived ? 'Mechanic has arrived' : copy.title;
-  let caption = copy.caption;
-  if (onTheWay && stale) {
-    caption = 'Updating mechanic location…';
-  } else if (onTheWay && eta) {
-    caption = [distance, eta].filter(Boolean).join(' · ');
-  } else if (onTheWay && route && !route.available) {
-    caption = ETA_UNAVAILABLE;
-  } else if (onTheWay && mechanicPoint && !route) {
-    caption = 'Updating route…';
+  let title = copy.title;
+  let subtitle: string | null = null;
+
+  if (arrived) {
+    title = ETA_ARRIVED;
+  } else if (accepted) {
+    title = ETA_PREPARING;
+  } else if (onTheWay && stale) {
+    title = ETA_STALE;
+  } else if (onTheWay && arrival) {
+    title = arrival;
+    subtitle = distanceAway;
+  } else if (onTheWay && unavailable) {
+    title = ETA_UNAVAILABLE;
+  } else if (onTheWay && (loading || (mechanicPoint && !route))) {
+    title = ETA_CALCULATING;
+  } else if (onTheWay && !mechanicPoint) {
+    subtitle = 'Waiting for mechanic location';
   }
 
   return (
     <View style={styles.wrap}>
       <View style={styles.copy}>
-        <AppText variant="caption" color="textMuted" style={styles.center}>
-          {caption}
-        </AppText>
         <AppText variant="h2" style={styles.center}>
           {title}
         </AppText>
+        {subtitle ? (
+          <AppText variant="body" color="textSecondary" style={styles.center}>
+            {subtitle}
+          </AppText>
+        ) : null}
       </View>
       <LiveJobMap
         customerPoint={customerPoint}
         mechanicPoint={mechanicPoint}
         routeCoordinates={onTheWay ? routePoints(route) : []}
-        waitingForMechanic={!mechanicPoint && (onTheWay || status === 'ACCEPTED')}
+        waitingForMechanic={!mechanicPoint && (onTheWay || accepted)}
       />
     </View>
   );

@@ -21,6 +21,7 @@ import { TRACKING, type GeoPoint } from '@/features/maps/constants';
 import { haversineMeters, roundCoordinate } from '@/features/maps/geo';
 import {
   prepareForegroundGps,
+  type LocationPrepCode,
 } from '@/features/location/foreground';
 import { isMechanicApproved } from '@/lib/api/approval';
 import { isApiError } from '@/lib/api/errors';
@@ -72,6 +73,8 @@ type MechanicSessionValue = {
   updateJobStatus: (jobId: string, status: JobStatus) => Promise<MockJob | null>;
   proposeJobPrice: (amount: string) => Promise<MockJob | null>;
   livePosition: GeoPoint | null;
+  gpsIssue: LocationPrepCode | null;
+  retryLiveTracking: () => void;
   finishJob: () => boolean;
   signOut: () => Promise<void>;
 };
@@ -124,6 +127,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   const [pendingOffer, setPendingOffer] = useState<ApiMechanicOffer | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [livePosition, setLivePosition] = useState<GeoPoint | null>(null);
+  const [gpsIssue, setGpsIssue] = useState<LocationPrepCode | null>(null);
   const availabilityBusyRef = useRef(false);
   const pollInFlightRef = useRef(false);
   const pollQueuedRef = useRef(false);
@@ -387,6 +391,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     watchRef.current?.remove();
     watchRef.current = null;
     lastSentRef.current = null;
+    setGpsIssue(null);
     if (clearPosition) {
       setLivePosition(null);
     }
@@ -396,9 +401,13 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     if (watchRef.current) return;
     const generation = gpsGenerationRef.current + 1;
     gpsGenerationRef.current = generation;
+    setGpsIssue(null);
     const prep = await prepareForegroundGps();
     if (generation !== gpsGenerationRef.current) return;
-    if (!prep.ok) return;
+    if (!prep.ok) {
+      setGpsIssue(prep.code);
+      return;
+    }
     setLivePosition(prep.point);
     lastSentRef.current = {
       t: Date.now(),
@@ -409,41 +418,53 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       latitude: prep.point.latitude,
       longitude: prep.point.longitude,
     });
-    const subscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 3000,
-        distanceInterval: 10,
-      },
-      (position) => {
-        if (generation !== gpsGenerationRef.current) return;
-        const latitude = roundCoordinate(position.coords.latitude);
-        const longitude = roundCoordinate(position.coords.longitude);
-        setLivePosition({ latitude, longitude });
-        const now = Date.now();
-        const last = lastSentRef.current;
-        const moved = last
-          ? haversineMeters(
-              { latitude: last.lat, longitude: last.lng },
-              { latitude, longitude },
-            )
-          : Infinity;
-        if (
-          last &&
-          now - last.t < TRACKING.GPS_UPLOAD_INTERVAL_MS &&
-          moved < TRACKING.GPS_UPLOAD_MIN_MOVE_METERS
-        ) {
-          return;
-        }
-        lastSentRef.current = { t: now, lat: latitude, lng: longitude };
-        void reportMechanicLocation({ latitude, longitude });
-      },
-    );
-    if (generation !== gpsGenerationRef.current) {
-      subscription.remove();
-      return;
+    try {
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000,
+          distanceInterval: 10,
+        },
+        (position) => {
+          if (generation !== gpsGenerationRef.current) return;
+          const latitude = roundCoordinate(position.coords.latitude);
+          const longitude = roundCoordinate(position.coords.longitude);
+          setLivePosition({ latitude, longitude });
+          setGpsIssue(null);
+          const now = Date.now();
+          const last = lastSentRef.current;
+          const moved = last
+            ? haversineMeters(
+                { latitude: last.lat, longitude: last.lng },
+                { latitude, longitude },
+              )
+            : Infinity;
+          if (
+            last &&
+            now - last.t < TRACKING.GPS_UPLOAD_INTERVAL_MS &&
+            moved < TRACKING.GPS_UPLOAD_MIN_MOVE_METERS
+          ) {
+            return;
+          }
+          lastSentRef.current = { t: now, lat: latitude, lng: longitude };
+          void reportMechanicLocation({ latitude, longitude });
+        },
+        () => {
+          if (generation !== gpsGenerationRef.current) return;
+          watchRef.current?.remove();
+          watchRef.current = null;
+          setGpsIssue('services_disabled');
+        },
+      );
+      if (generation !== gpsGenerationRef.current) {
+        subscription.remove();
+        return;
+      }
+      watchRef.current = subscription;
+    } catch {
+      if (generation !== gpsGenerationRef.current) return;
+      setGpsIssue('unavailable');
     }
-    watchRef.current = subscription;
   }, []);
 
   useEffect(() => {
@@ -455,6 +476,13 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       activeJob?.status === 'ARRIVED' || activeJob?.status === 'IN_PROGRESS';
     stopGpsWatch(!keepLastFix);
   }, [activeJob?.status, startGpsWatch, stopGpsWatch]);
+
+  const retryLiveTracking = useCallback(() => {
+    gpsGenerationRef.current += 1;
+    watchRef.current?.remove();
+    watchRef.current = null;
+    void startGpsWatch();
+  }, [startGpsWatch]);
 
   useEffect(() => () => stopGpsWatch(true), [stopGpsWatch]);
 
@@ -485,6 +513,8 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       updateJobStatus,
       proposeJobPrice,
       livePosition,
+      gpsIssue,
+      retryLiveTracking,
       finishJob,
       signOut,
     }),
@@ -496,6 +526,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       declineJob,
       finishJob,
       getJob,
+      gpsIssue,
       hydrated,
       incomingJob,
       isApproved,
@@ -505,6 +536,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       refreshIncoming,
       setOnline,
       signOut,
+      retryLiveTracking,
       updateJobStatus,
     ],
   );

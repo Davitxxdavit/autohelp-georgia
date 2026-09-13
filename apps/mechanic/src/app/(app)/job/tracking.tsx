@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { JobScreenScaffold } from '@/components/job/JobScreenScaffold';
@@ -13,6 +13,7 @@ import { SERVICE_LABELS } from '@/constants/services';
 import { JobPricePanel } from '@/features/jobs/components/JobPricePanel';
 import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import {
+  ETA_CALCULATING,
   ETA_UNAVAILABLE,
   formatDistanceMeters,
   formatDurationSeconds,
@@ -30,6 +31,7 @@ import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import {
   alertLocationRequired,
   prepareForegroundGps,
+  trackingIssueMessage,
 } from '@/features/location/foreground';
 import { openPhoneCall } from '@/lib/phone';
 import { timing } from '@/animations/timing';
@@ -91,7 +93,7 @@ function TrackingHero({
         <StatusBadge label={JOB_STATUS_LABELS.ON_THE_WAY} tone="primary" />
         <AppText variant="h2">{etaLabel ?? ETA_UNAVAILABLE}</AppText>
         {distanceLabel ? (
-          <AppText variant="bodyMedium">{distanceLabel}</AppText>
+          <AppText variant="bodyMedium">Customer: {distanceLabel}</AppText>
         ) : null}
       </View>
     );
@@ -148,7 +150,7 @@ function TrackingFacts({ job }: { job: MockJob }) {
 
 export default function JobTrackingScreen() {
   const router = useRouter();
-  const { activeJob, updateJobStatus, proposeJobPrice, livePosition } =
+  const { activeJob, updateJobStatus, proposeJobPrice, livePosition, gpsIssue, retryLiveTracking } =
     useMechanicSession();
   const [busy, setBusy] = useState(false);
   const action = activeJob ? trackingAction(activeJob.status) : null;
@@ -158,17 +160,21 @@ export default function JobTrackingScreen() {
     ? parseGeoPoint(activeJob.customerLatitude, activeJob.customerLongitude)
     : null;
   const onTheWay = activeJob?.status === 'ON_THE_WAY';
-  const { route } = useTripRoute({
+  const { route, loading } = useTripRoute({
     requestId: activeJob?.requestId,
     enabled: Boolean(onTheWay && livePosition),
     origin: livePosition,
   });
+  const duration = route?.available
+    ? formatDurationSeconds(route.duration_seconds)
+    : null;
   const distanceLabel = route?.available
     ? formatDistanceMeters(route.distance_meters)
     : null;
-  const etaLabel =
-    route?.available
-      ? formatDurationSeconds(route.duration_seconds)
+  const etaLabel = duration
+    ? `About ${duration}`
+    : onTheWay && (loading || !route)
+      ? ETA_CALCULATING
       : onTheWay
         ? ETA_UNAVAILABLE
         : null;
@@ -193,14 +199,15 @@ export default function JobTrackingScreen() {
   const onPrimary = () => {
     if (!activeJob || !action || busy) return;
     void (async () => {
+      setBusy(true);
       if (action.next === 'ON_THE_WAY') {
         const prep = await prepareForegroundGps();
         if (!prep.ok) {
+          setBusy(false);
           alertLocationRequired(prep, () => onPrimary());
           return;
         }
       }
-      setBusy(true);
       const next = await updateJobStatus(activeJob.id, action.next);
       setBusy(false);
       if (!next) return;
@@ -243,11 +250,13 @@ export default function JobTrackingScreen() {
           <>
             <PrimaryButton
               label={
-                busy
-                  ? 'Updating…'
-                  : startBlocked
-                    ? 'Waiting for price approval'
-                    : action.label
+                busy && action.next === 'ON_THE_WAY'
+                  ? 'Preparing location…'
+                  : busy
+                    ? 'Updating…'
+                    : startBlocked
+                      ? 'Waiting for price approval'
+                      : action.label
               }
               disabled={busy || startBlocked}
               onPress={onPrimary}
@@ -283,9 +292,41 @@ export default function JobTrackingScreen() {
           customerLabel="Customer"
           mechanicLabel="You"
           waitingForMechanic={onTheWay && !livePosition}
-          bannerText="Getting your location"
+          bannerText={
+            gpsIssue ? trackingIssueMessage(gpsIssue) : 'Getting your location'
+          }
         />
       </Reveal>
+
+      {onTheWay && gpsIssue ? (
+        <Reveal delayMs={timing.instant}>
+          <View style={styles.gpsIssue}>
+            <AppText variant="body" color="textSecondary">
+              {trackingIssueMessage(gpsIssue)}
+            </AppText>
+            <AnimatedPressable
+              accessibilityLabel="Try again"
+              onPress={() => retryLiveTracking()}
+              style={styles.gpsAction}
+            >
+              <AppText variant="button" color="primary">
+                Try again
+              </AppText>
+            </AnimatedPressable>
+            <AnimatedPressable
+              accessibilityLabel="Open Settings"
+              onPress={() => {
+                void Linking.openSettings();
+              }}
+              style={styles.gpsAction}
+            >
+              <AppText variant="button" color="textSecondary">
+                Open Settings
+              </AppText>
+            </AnimatedPressable>
+          </View>
+        </Reveal>
+      ) : null}
 
       <Reveal delayMs={timing.fast}>
         <TrackingFacts job={activeJob} />
@@ -315,5 +356,12 @@ const styles = StyleSheet.create({
   contact: {
     alignItems: 'center',
     paddingVertical: spacing.sm,
+  },
+  gpsIssue: {
+    gap: spacing.sm,
+  },
+  gpsAction: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
   },
 });
