@@ -39,8 +39,8 @@ export type MockJob = {
   fuel: string;
   problem: string;
   locationLabel: string;
-  distanceKm: number;
-  etaMinutes: number;
+  customerLatitude: number | null;
+  customerLongitude: number | null;
   estimatedPayoutGel: number;
   estimatedPayoutDisplay: string;
   finalPriceAmount: string | null;

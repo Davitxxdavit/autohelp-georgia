@@ -2,6 +2,7 @@ import { apiGetList, apiRequest } from './client';
 import { resolveCatalogIds } from './mapping';
 import type {
   ApiServiceRequest,
+  ApiTripRoute,
   CreateServiceRequestBody,
   FrontendServiceId,
   Paginated,
@@ -13,6 +14,10 @@ export async function listServiceRequests(): Promise<ApiServiceRequest[]> {
 
 export async function getServiceRequest(id: string): Promise<ApiServiceRequest> {
   return apiRequest<ApiServiceRequest>(`/requests/${id}/`);
+}
+
+export async function getRequestRoute(id: string): Promise<ApiTripRoute> {
+  return apiRequest<ApiTripRoute>(`/requests/${id}/route/`);
 }
 
 export async function cancelServiceRequest(

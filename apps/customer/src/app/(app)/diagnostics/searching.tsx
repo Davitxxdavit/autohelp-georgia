@@ -17,13 +17,16 @@ import Animated, {
 import { AppText } from '@/components/ui/AppText';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { FadeIn } from '@/features/services/flow/FadeIn';
-import { SearchingVisual } from '@/features/services/flow/SearchingVisual';
+import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import { useServiceBottomPad } from '@/features/services/flow/ServiceScreenScaffold';
 import {
   RequestMissingState,
   RequestPollHint,
 } from '@/features/services/flow/RequestSyncNotice';
-import { DIAGNOSTICS_FLOW_ROUTES } from '@/features/services/flow/requestFlow';
+import {
+  DIAGNOSTICS_FLOW_ROUTES,
+  customerPointFromLiveOrDraft,
+} from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import { useDiagnosticsFlow } from '@/features/services/diagnostics/DiagnosticsFlowProvider';
@@ -93,7 +96,7 @@ export default function DiagnosticsSearchingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { notFound, pollError } = useRequestFlowSync({
+  const { notFound, pollError, request } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'searching',
     routes: DIAGNOSTICS_FLOW_ROUTES,
@@ -153,7 +156,12 @@ export default function DiagnosticsSearchingScreen() {
           <AppText variant="label" color="primary" style={styles.center}>
             Computer diagnostics
           </AppText>
-          <SearchingVisual kind="diagnostics" />
+          <LiveJobMap
+            customerPoint={customerPointFromLiveOrDraft(
+              request ?? draft.liveRequest,
+              draft.location,
+            )}
+          />
           <View style={styles.copy}>
             <AppText variant="h2" style={styles.center}>
               Finding a specialist

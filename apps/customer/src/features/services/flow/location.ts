@@ -26,7 +26,7 @@ export function isLocationCaptureError(
 
 const CAPTURE_TIMEOUT_MS = 20_000;
 
-/** Offset from the customer pin — visual specialist marker only, not GPS. */
+/** Offset from the customer pin — unused in the live request flow. */
 export const MOCK_SPECIALIST_POINT = {
   latitude: 41.6284,
   longitude: 41.6452,

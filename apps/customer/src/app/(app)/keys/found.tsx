@@ -16,10 +16,13 @@ import {
 } from '@/features/services/flow/RequestSyncNotice';
 import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
+import { LiveJobMap } from '@/features/maps/LiveJobMap';
+import { mechanicPointFromRequest } from '@/features/services/flow/TripLivePanel';
 import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import {
   KEYS_FLOW_ROUTES,
   assignedMechanicIdentity,
+  customerPointFromLiveOrDraft,
   requestEstimateLabel,
   requestVehicleLine,
 } from '@/features/services/flow/requestFlow';
@@ -132,6 +135,14 @@ export default function KeysFoundScreen() {
           <AppText variant="label" color="primary" style={styles.center}>
             Locksmith found
           </AppText>
+        </Reveal>
+
+        <Reveal delayMs={timing.instant}>
+          <LiveJobMap
+            customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
+            mechanicPoint={mechanicPointFromRequest(live)}
+            waitingForMechanic={!mechanicPointFromRequest(live)}
+          />
         </Reveal>
 
         <Reveal delayMs={timing.instant}>

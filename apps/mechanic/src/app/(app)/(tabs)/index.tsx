@@ -113,7 +113,7 @@ export default function MechanicHomeScreen() {
             </AppText>
             <AppText variant="body">{incomingJob.problem}</AppText>
             <AppText variant="caption" color="textMuted">
-              {incomingJob.distanceKm} km away
+              {incomingJob.locationLabel}
             </AppText>
             <AppText variant="caption" color="textMuted">
               Estimated payout

@@ -89,7 +89,15 @@ class MechanicProfileAdmin(admin.ModelAdmin):
     list_filter = ("approval_status", "verified", "online")
     search_fields = ("first_name", "last_name", "user__phone")
     filter_horizontal = ("services",)
-    readonly_fields = ("created_at", "updated_at", "rating_average", "rating_count")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "rating_average",
+        "rating_count",
+        "current_latitude",
+        "current_longitude",
+        "location_updated_at",
+    )
     actions = ("approve_selected_mechanics", "mark_selected_mechanics_unapproved")
     list_select_related = ("user",)
 

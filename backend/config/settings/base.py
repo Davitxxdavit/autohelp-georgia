@@ -130,6 +130,9 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
+ROUTING_PROVIDER = os.getenv("ROUTING_PROVIDER", "openrouteservice").strip().lower()
+ROUTING_API_KEY = os.getenv("ROUTING_API_KEY", "").strip()
+
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:8081,http://localhost:8082,http://localhost:19006",

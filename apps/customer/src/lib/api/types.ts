@@ -88,6 +88,9 @@ export type ApiAssignedMechanic = {
   verified: boolean;
   rating_average: string | number;
   phone?: string | null;
+  current_latitude?: string | null;
+  current_longitude?: string | null;
+  location_updated_at?: string | null;
 };
 
 export type CurrentUser = {
@@ -138,4 +141,18 @@ export type CreateServiceRequestBody = {
   customer_latitude: number | string;
   customer_longitude: number | string;
   customer_address?: string;
+};
+
+export type ApiRouteCoordinate = {
+  latitude: string;
+  longitude: string;
+};
+
+export type ApiTripRoute = {
+  available: boolean;
+  origin: { latitude: string; longitude: string } | null;
+  destination: { latitude: string; longitude: string } | null;
+  distance_meters: number | null;
+  duration_seconds: number | null;
+  coordinates: ApiRouteCoordinate[];
 };

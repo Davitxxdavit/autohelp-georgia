@@ -1,7 +1,7 @@
 import { SERVICE_IDS, type ServiceId } from '@/constants/services';
+import { parseGeoPoint } from '@/features/maps/geo';
 import type { ApiMechanicOffer } from '@/lib/api/types';
 
-import { MOCK_BATTERY_JOB } from './mock';
 import type { JobStatus, MockJob } from './types';
 
 function asServiceId(code: string): ServiceId {
@@ -27,7 +27,6 @@ function fuelLabel(fuel: string): string {
 
 /**
  * Maps a backend offer onto the existing MockJob UI shape.
- * distanceKm / etaMinutes stay visual placeholders (no routing engine).
  */
 export function mapOfferToJob(
   offer: ApiMechanicOffer,
@@ -37,6 +36,10 @@ export function mapOfferToJob(
   const vehicle = request.vehicle;
   const finalAmount = request.final_price_amount;
   const displayAmount = request.final_price_amount ?? request.estimated_price_amount;
+  const customerPoint = parseGeoPoint(
+    request.customer_latitude,
+    request.customer_longitude,
+  );
   return {
     id: offer.id,
     requestId: request.id,
@@ -49,8 +52,8 @@ export function mapOfferToJob(
     fuel: fuelLabel(vehicle.fuel),
     problem: request.problem_label,
     locationLabel: request.customer_address || 'Customer location',
-    distanceKm: MOCK_BATTERY_JOB.distanceKm,
-    etaMinutes: MOCK_BATTERY_JOB.etaMinutes,
+    customerLatitude: customerPoint?.latitude ?? null,
+    customerLongitude: customerPoint?.longitude ?? null,
     estimatedPayoutGel: displayAmount ? Number.parseFloat(displayAmount) : 0,
     estimatedPayoutDisplay: formatCatalogEstimate(
       displayAmount,

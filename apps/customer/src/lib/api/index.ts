@@ -20,6 +20,7 @@ export {
   approveRequestPrice,
   rejectRequestPrice,
   getServiceRequest,
+  getRequestRoute,
   listServiceRequests,
   listServiceRequestsFirstPage,
 } from './requests';

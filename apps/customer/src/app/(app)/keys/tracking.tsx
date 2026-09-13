@@ -9,8 +9,6 @@ import { Reveal } from '@/features/services/flow/Reveal';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
-import { TrackingMap } from '@/features/services/flow/TrackingMap';
-import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
 import {
   RequestMissingState,
   RequestPollHint,
@@ -21,6 +19,7 @@ import {
   customerPointFromLiveOrDraft,
   trackingStatusCopy,
 } from '@/features/services/flow/requestFlow';
+import { TripLivePanel } from '@/features/services/flow/TripLivePanel';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
 import type { ApiServiceRequest } from '@/lib/api/types';
@@ -87,22 +86,12 @@ export default function KeysTrackingScreen() {
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
-          <TrackingMap
-            userPoint={customerPointFromLiveOrDraft(live, draft.location)}
-            mechanicPoint={MOCK_SPECIALIST_POINT}
+          <TripLivePanel
+            request={live}
+            customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
+            kind="keys"
           />
-        </Reveal>
-
-        <Reveal delayMs={timing.normal}>
-          <View style={styles.eta}>
-            <AppText variant="caption" color="textMuted" style={styles.center}>
-              {statusCopy.caption}
-            </AppText>
-            <AppText variant="h2" style={styles.center}>
-              {statusCopy.title}
-            </AppText>
-            <RequestPollHint pollError={pollError} />
-          </View>
+          <RequestPollHint pollError={pollError} />
         </Reveal>
 
         <Reveal delayMs={timing.slow}>

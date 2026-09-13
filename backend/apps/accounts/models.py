@@ -130,6 +130,22 @@ class MechanicProfile(TimeStampedModel):
         related_name="mechanics",
         blank=True,
     )
+    current_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[validate_latitude],
+        help_text="Latest known mechanic position. Not a location history log.",
+    )
+    current_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[validate_longitude],
+    )
+    location_updated_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}".strip() or str(self.user.phone)

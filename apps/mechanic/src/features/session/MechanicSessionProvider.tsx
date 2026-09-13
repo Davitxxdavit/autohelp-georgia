@@ -17,6 +17,11 @@ import {
   type JobStatus,
   type MockJob,
 } from '@/features/jobs/types';
+import { TRACKING, type GeoPoint } from '@/features/maps/constants';
+import { haversineMeters, roundCoordinate } from '@/features/maps/geo';
+import {
+  prepareForegroundGps,
+} from '@/features/location/foreground';
 import { isMechanicApproved } from '@/lib/api/approval';
 import { isApiError } from '@/lib/api/errors';
 import {
@@ -27,12 +32,14 @@ import {
   listPendingOffers,
   patchMechanicMe,
   proposeJobPrice as proposeJobPriceRequest,
+  reportMechanicLocation,
   transitionJob,
   type MechanicJobAction,
 } from '@/lib/api/mechanic';
 import { clearTokens, getAccessToken } from '@/lib/api/tokens';
 import type { ApiMechanicMe, ApiMechanicOffer } from '@/lib/api/types';
 import { SERVICE_IDS, type ServiceId } from '@/constants/services';
+import * as Location from 'expo-location';
 
 import { type MockMechanicProfile } from './mock';
 
@@ -64,6 +71,7 @@ type MechanicSessionValue = {
   declineJob: (id: string) => Promise<boolean>;
   updateJobStatus: (jobId: string, status: JobStatus) => Promise<MockJob | null>;
   proposeJobPrice: (amount: string) => Promise<MockJob | null>;
+  livePosition: GeoPoint | null;
   finishJob: () => boolean;
   signOut: () => Promise<void>;
 };
@@ -115,9 +123,15 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
   const [activeJob, setActiveJob] = useState<MockJob | null>(null);
   const [pendingOffer, setPendingOffer] = useState<ApiMechanicOffer | null>(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [livePosition, setLivePosition] = useState<GeoPoint | null>(null);
   const availabilityBusyRef = useRef(false);
   const pollInFlightRef = useRef(false);
   const pollQueuedRef = useRef(false);
+  const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const gpsGenerationRef = useRef(0);
+  const lastSentRef = useRef<{ t: number; lat: number; lng: number } | null>(
+    null,
+  );
 
   const incomingJob = useMemo(() => {
     if (!isApproved || !profile.online || activeJob || !pendingOffer) return null;
@@ -368,14 +382,91 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     return true;
   }, [activeJob, refreshIncoming]);
 
+  const stopGpsWatch = useCallback((clearPosition = true) => {
+    gpsGenerationRef.current += 1;
+    watchRef.current?.remove();
+    watchRef.current = null;
+    lastSentRef.current = null;
+    if (clearPosition) {
+      setLivePosition(null);
+    }
+  }, []);
+
+  const startGpsWatch = useCallback(async () => {
+    if (watchRef.current) return;
+    const generation = gpsGenerationRef.current + 1;
+    gpsGenerationRef.current = generation;
+    const prep = await prepareForegroundGps();
+    if (generation !== gpsGenerationRef.current) return;
+    if (!prep.ok) return;
+    setLivePosition(prep.point);
+    lastSentRef.current = {
+      t: Date.now(),
+      lat: prep.point.latitude,
+      lng: prep.point.longitude,
+    };
+    void reportMechanicLocation({
+      latitude: prep.point.latitude,
+      longitude: prep.point.longitude,
+    });
+    const subscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 10,
+      },
+      (position) => {
+        if (generation !== gpsGenerationRef.current) return;
+        const latitude = roundCoordinate(position.coords.latitude);
+        const longitude = roundCoordinate(position.coords.longitude);
+        setLivePosition({ latitude, longitude });
+        const now = Date.now();
+        const last = lastSentRef.current;
+        const moved = last
+          ? haversineMeters(
+              { latitude: last.lat, longitude: last.lng },
+              { latitude, longitude },
+            )
+          : Infinity;
+        if (
+          last &&
+          now - last.t < TRACKING.GPS_UPLOAD_INTERVAL_MS &&
+          moved < TRACKING.GPS_UPLOAD_MIN_MOVE_METERS
+        ) {
+          return;
+        }
+        lastSentRef.current = { t: now, lat: latitude, lng: longitude };
+        void reportMechanicLocation({ latitude, longitude });
+      },
+    );
+    if (generation !== gpsGenerationRef.current) {
+      subscription.remove();
+      return;
+    }
+    watchRef.current = subscription;
+  }, []);
+
+  useEffect(() => {
+    if (activeJob?.status === 'ON_THE_WAY') {
+      void startGpsWatch();
+      return;
+    }
+    const keepLastFix =
+      activeJob?.status === 'ARRIVED' || activeJob?.status === 'IN_PROGRESS';
+    stopGpsWatch(!keepLastFix);
+  }, [activeJob?.status, startGpsWatch, stopGpsWatch]);
+
+  useEffect(() => () => stopGpsWatch(true), [stopGpsWatch]);
+
   const signOut = useCallback(async () => {
+    stopGpsWatch(true);
     await clearTokens();
     setProfile(INITIAL_PROFILE);
     setActiveJob(null);
     setPendingOffer(null);
     setIsApproved(false);
     setHydrated(true);
-  }, []);
+  }, [stopGpsWatch]);
 
   const value = useMemo<MechanicSessionValue>(
     () => ({
@@ -393,6 +484,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       declineJob,
       updateJobStatus,
       proposeJobPrice,
+      livePosition,
       finishJob,
       signOut,
     }),
@@ -407,6 +499,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       hydrated,
       incomingJob,
       isApproved,
+      livePosition,
       profile,
       proposeJobPrice,
       refreshIncoming,

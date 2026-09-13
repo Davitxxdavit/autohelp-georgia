@@ -17,14 +17,17 @@ import Animated, {
 import { AppText } from '@/components/ui/AppText';
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { FadeIn } from '@/features/services/battery/components/FadeIn';
-import { SearchingVisual } from '@/features/services/battery/components/SearchingVisual';
 import { useBatteryBottomPad } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
+import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import {
   RequestMissingState,
   RequestPollHint,
 } from '@/features/services/flow/RequestSyncNotice';
-import { BATTERY_FLOW_ROUTES } from '@/features/services/flow/requestFlow';
+import {
+  BATTERY_FLOW_ROUTES,
+  customerPointFromLiveOrDraft,
+} from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import type { ApiServiceRequest } from '@/lib/api/types';
@@ -93,7 +96,7 @@ export default function BatterySearchingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { notFound, pollError } = useRequestFlowSync({
+  const { notFound, pollError, request } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'searching',
     routes: BATTERY_FLOW_ROUTES,
@@ -153,7 +156,12 @@ export default function BatterySearchingScreen() {
           <AppText variant="label" color="primary" style={styles.center}>
             Battery Assistance
           </AppText>
-          <SearchingVisual />
+          <LiveJobMap
+            customerPoint={customerPointFromLiveOrDraft(
+              request ?? draft.liveRequest,
+              draft.location,
+            )}
+          />
           <View style={styles.copy}>
             <AppText variant="h2" style={styles.center}>
               Finding nearby help

@@ -124,3 +124,17 @@ export type ApiService = {
   description: string;
   active: boolean;
 };
+
+export type ApiRouteCoordinate = {
+  latitude: string;
+  longitude: string;
+};
+
+export type ApiTripRoute = {
+  available: boolean;
+  origin: { latitude: string; longitude: string } | null;
+  destination: { latitude: string; longitude: string } | null;
+  distance_meters: number | null;
+  duration_seconds: number | null;
+  coordinates: ApiRouteCoordinate[];
+};

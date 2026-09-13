@@ -11,6 +11,7 @@ from apps.accounts.models import Role
 from apps.common.permissions import IsCustomer
 from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED, VALIDATION_ERROR
 from apps.requests.exceptions import Conflict
+from apps.requests.location import require_route_access
 from apps.requests.models import (
     CancelledBy,
     MechanicRequestOffer,
@@ -18,10 +19,12 @@ from apps.requests.models import (
     RequestStatus,
     ServiceRequest,
 )
+from apps.requests.routing import compute_road_route
 from apps.requests.serializers import (
     ApprovePriceSerializer,
     ServiceRequestCreateSerializer,
     ServiceRequestSerializer,
+    TripRouteSerializer,
 )
 from apps.requests.quotes import approve_request_price, reject_request_price
 
@@ -257,3 +260,58 @@ class ServiceRequestViewSet(
             customer_id=customer.id,
         )
         return self._customer_quote_response(service_request)
+
+    @extend_schema(
+        tags=["Requests"],
+        summary="Road route from mechanic to customer",
+        description=(
+            "Owning customer or assigned mechanic. Origin and destination are "
+            "taken from stored request and mechanic coordinates. Clients cannot "
+            "supply arbitrary points. After arrival, routing is no longer available."
+        ),
+        request=None,
+        responses={
+            200: TripRouteSerializer,
+            401: UNAUTHORIZED,
+            404: NOT_FOUND,
+            409: CONFLICT,
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="route")
+    def route(self, request, pk=None):
+        service_request = self.get_object()
+        require_route_access(service_request)
+        mechanic = service_request.assigned_mechanic
+        origin = {
+            "latitude": str(mechanic.current_latitude),
+            "longitude": str(mechanic.current_longitude),
+        }
+        destination = {
+            "latitude": str(service_request.customer_latitude),
+            "longitude": str(service_request.customer_longitude),
+        }
+        result = compute_road_route(
+            origin_latitude=mechanic.current_latitude,
+            origin_longitude=mechanic.current_longitude,
+            destination_latitude=service_request.customer_latitude,
+            destination_longitude=service_request.customer_longitude,
+        )
+        if result is None:
+            payload = {
+                "available": False,
+                "origin": origin,
+                "destination": destination,
+                "distance_meters": None,
+                "duration_seconds": None,
+                "coordinates": [],
+            }
+        else:
+            payload = {
+                "available": True,
+                "origin": origin,
+                "destination": destination,
+                "distance_meters": result.distance_meters,
+                "duration_seconds": result.duration_seconds,
+                "coordinates": result.coordinates,
+            }
+        return Response(payload, status=status.HTTP_200_OK)

@@ -6,7 +6,7 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 
-import { MockMap } from './MockMap';
+import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import type { CustomerLocation } from './types';
 import type { LocationCapturePhase } from './useDeviceLocationCapture';
 
@@ -34,7 +34,7 @@ export function LocationCaptureBlock({
 
   return (
     <>
-      <MockMap location={location} />
+      <LiveJobMap customerPoint={location?.point ?? null} customerLabel="You" />
       <View style={styles.place}>
         <AppText variant="label" color="primary">
           Current location

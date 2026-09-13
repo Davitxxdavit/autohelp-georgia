@@ -9,7 +9,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zadenn.mechanic"
+      "bundleIdentifier": "com.zadenn.mechanic",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "AutoHelp uses your location to share your live position with the customer while you are on the way."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +31,14 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AutoHelp uses your location to share your live position with the customer while you are on the way.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       [
         "expo-navigation-bar",
         {

@@ -12,9 +12,7 @@ import { AppText } from '@/components/ui/AppText';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BatteryScreenScaffold } from '@/features/services/battery/components/BatteryScreenScaffold';
 import { MechanicCard } from '@/features/services/battery/components/MechanicCard';
-import { TrackingMap } from '@/features/services/battery/components/TrackingMap';
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
-import { MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import {
@@ -27,6 +25,7 @@ import {
   customerPointFromLiveOrDraft,
   trackingStatusCopy,
 } from '@/features/services/flow/requestFlow';
+import { TripLivePanel } from '@/features/services/flow/TripLivePanel';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { requestStatusTone } from '@/lib/api/status';
 import type { ApiServiceRequest } from '@/lib/api/types';
@@ -122,22 +121,12 @@ export default function BatteryTrackingScreen() {
         </Reveal>
 
         <Reveal delayMs={timing.instant}>
-          <View style={styles.eta}>
-            <AppText variant="caption" color="textMuted" style={styles.center}>
-              {statusCopy.caption}
-            </AppText>
-            <AppText variant="h2" style={styles.center}>
-              {statusCopy.title}
-            </AppText>
-            <RequestPollHint pollError={pollError} />
-          </View>
-        </Reveal>
-
-        <Reveal delayMs={timing.normal}>
-          <TrackingMap
-            userPoint={customerPointFromLiveOrDraft(live, draft.location)}
-            mechanicPoint={MOCK_MECHANIC_POINT}
+          <TripLivePanel
+            request={live}
+            customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
+            kind="battery"
           />
+          <RequestPollHint pollError={pollError} />
         </Reveal>
 
         <Reveal delayMs={timing.slow}>

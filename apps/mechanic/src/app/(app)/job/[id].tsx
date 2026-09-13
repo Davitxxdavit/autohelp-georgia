@@ -122,9 +122,9 @@ export default function JobDetailsScreen() {
           <AppText variant="label" color="primary">
             {SERVICE_LABELS[job.serviceId]}
           </AppText>
-          <AppText variant="h2">{job.distanceKm} km away</AppText>
+          <AppText variant="h2">{job.locationLabel}</AppText>
           <AppText variant="caption" color="textMuted">
-            ~{job.etaMinutes} min to customer
+            Customer location
           </AppText>
         </View>
       </Reveal>

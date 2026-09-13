@@ -11,11 +11,14 @@ import { Reveal } from '@/components/ui/Reveal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SERVICE_LABELS } from '@/constants/services';
 import { JobPricePanel } from '@/features/jobs/components/JobPricePanel';
-import { MechanicTrackingMap } from '@/features/jobs/components/MechanicTrackingMap';
+import { LiveJobMap } from '@/features/maps/LiveJobMap';
 import {
-  MOCK_CUSTOMER_POINT,
-  MOCK_MECHANIC_START_POINT,
-} from '@/features/jobs/mock';
+  ETA_UNAVAILABLE,
+  formatDistanceMeters,
+  formatDurationSeconds,
+} from '@/features/maps/format';
+import { parseGeoPoint } from '@/features/maps/geo';
+import { useTripRoute } from '@/features/maps/useTripRoute';
 import { getActiveJobRoute } from '@/features/jobs/routes';
 import {
   JOB_STATUS_LABELS,
@@ -24,6 +27,10 @@ import {
   type MockJob,
 } from '@/features/jobs/types';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
+import {
+  alertLocationRequired,
+  prepareForegroundGps,
+} from '@/features/location/foreground';
 import { openPhoneCall } from '@/lib/phone';
 import { timing } from '@/animations/timing';
 import { spacing } from '@/theme/spacing';
@@ -55,7 +62,15 @@ function trackingAction(status: JobStatus): {
   return null;
 }
 
-function TrackingHero({ job }: { job: MockJob }) {
+function TrackingHero({
+  job,
+  distanceLabel,
+  etaLabel,
+}: {
+  job: MockJob;
+  distanceLabel: string | null;
+  etaLabel: string | null;
+}) {
   const service = SERVICE_LABELS[job.serviceId];
 
   if (job.status === 'ARRIVED') {
@@ -74,11 +89,10 @@ function TrackingHero({ job }: { job: MockJob }) {
     return (
       <View style={styles.hero}>
         <StatusBadge label={JOB_STATUS_LABELS.ON_THE_WAY} tone="primary" />
-        <AppText variant="caption" color="textMuted">
-          Arriving in
-        </AppText>
-        <AppText variant="h2">~{job.etaMinutes} min</AppText>
-        <AppText variant="bodyMedium">{job.distanceKm} km</AppText>
+        <AppText variant="h2">{etaLabel ?? ETA_UNAVAILABLE}</AppText>
+        {distanceLabel ? (
+          <AppText variant="bodyMedium">{distanceLabel}</AppText>
+        ) : null}
       </View>
     );
   }
@@ -87,8 +101,9 @@ function TrackingHero({ job }: { job: MockJob }) {
     <View style={styles.hero}>
       <StatusBadge label={JOB_STATUS_LABELS.ACCEPTED} tone="primary" />
       <AppText variant="h2">{service}</AppText>
-      <AppText variant="h3">{job.distanceKm} km away</AppText>
-      <AppText variant="bodyMedium">~{job.etaMinutes} min</AppText>
+      <AppText variant="body" color="textSecondary">
+        {job.locationLabel}
+      </AppText>
     </View>
   );
 }
@@ -133,11 +148,33 @@ function TrackingFacts({ job }: { job: MockJob }) {
 
 export default function JobTrackingScreen() {
   const router = useRouter();
-  const { activeJob, updateJobStatus, proposeJobPrice } = useMechanicSession();
+  const { activeJob, updateJobStatus, proposeJobPrice, livePosition } =
+    useMechanicSession();
   const [busy, setBusy] = useState(false);
   const action = activeJob ? trackingAction(activeJob.status) : null;
   const priceApproved = activeJob?.quoteStatus === 'APPROVED';
   const startBlocked = activeJob?.status === 'ARRIVED' && !priceApproved;
+  const customerPoint = activeJob
+    ? parseGeoPoint(activeJob.customerLatitude, activeJob.customerLongitude)
+    : null;
+  const onTheWay = activeJob?.status === 'ON_THE_WAY';
+  const { route } = useTripRoute({
+    requestId: activeJob?.requestId,
+    enabled: Boolean(onTheWay && livePosition),
+    origin: livePosition,
+  });
+  const distanceLabel = route?.available
+    ? formatDistanceMeters(route.distance_meters)
+    : null;
+  const etaLabel =
+    route?.available
+      ? formatDurationSeconds(route.duration_seconds)
+      : onTheWay
+        ? ETA_UNAVAILABLE
+        : null;
+  const routeCoordinates = (route?.coordinates ?? [])
+    .map((point) => parseGeoPoint(point.latitude, point.longitude))
+    .filter((point): point is NonNullable<typeof point> => point != null);
 
   useEffect(() => {
     if (
@@ -155,8 +192,15 @@ export default function JobTrackingScreen() {
 
   const onPrimary = () => {
     if (!activeJob || !action || busy) return;
-    setBusy(true);
     void (async () => {
+      if (action.next === 'ON_THE_WAY') {
+        const prep = await prepareForegroundGps();
+        if (!prep.ok) {
+          alertLocationRequired(prep, () => onPrimary());
+          return;
+        }
+      }
+      setBusy(true);
       const next = await updateJobStatus(activeJob.id, action.next);
       setBusy(false);
       if (!next) return;
@@ -224,14 +268,22 @@ export default function JobTrackingScreen() {
       }
     >
       <Reveal>
-        <TrackingHero job={activeJob} />
+        <TrackingHero
+          job={activeJob}
+          distanceLabel={distanceLabel}
+          etaLabel={etaLabel}
+        />
       </Reveal>
 
       <Reveal delayMs={timing.instant}>
-        <MechanicTrackingMap
-          mechanicPoint={MOCK_MECHANIC_START_POINT}
-          customerPoint={MOCK_CUSTOMER_POINT}
-          status={activeJob.status}
+        <LiveJobMap
+          customerPoint={customerPoint}
+          mechanicPoint={livePosition}
+          routeCoordinates={onTheWay ? routeCoordinates : []}
+          customerLabel="Customer"
+          mechanicLabel="You"
+          waitingForMechanic={onTheWay && !livePosition}
+          bannerText="Getting your location"
         />
       </Reveal>
 

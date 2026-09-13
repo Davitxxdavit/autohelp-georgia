@@ -47,6 +47,10 @@ services:
         value: "60"
       - key: JWT_REFRESH_DAYS
         value: "7"
+      - key: ROUTING_PROVIDER
+        value: "openrouteservice"
+      - key: ROUTING_API_KEY
+        sync: false
       # Staging accounts. Set true in the dashboard, then fill the credential
       # variables there. Values must not live in this file.
       - key: CREATE_STAGING_USERS

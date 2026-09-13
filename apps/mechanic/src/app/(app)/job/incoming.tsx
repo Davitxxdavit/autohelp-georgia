@@ -62,10 +62,6 @@ export default function IncomingJobScreen() {
       <Reveal delayMs={timing.instant}>
         <View style={styles.facts}>
           <AppText variant="caption" color="textMuted">
-            Distance
-          </AppText>
-          <AppText variant="h3">{job.distanceKm} km</AppText>
-          <AppText variant="caption" color="textMuted">
             Customer
           </AppText>
           <AppText variant="bodyMedium">{job.customerLabel}</AppText>

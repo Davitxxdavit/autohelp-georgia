@@ -29,8 +29,12 @@ from apps.requests.mechanic_serializers import (
     serialize_mechanic_me,
     serialize_mechanic_offer,
 )
+from apps.requests.location import update_mechanic_location
 from apps.requests.quotes import propose_job_price
-from apps.requests.serializers import ProposePriceSerializer
+from apps.requests.serializers import (
+    MechanicLocationUpdateSerializer,
+    ProposePriceSerializer,
+)
 from apps.requests.models import (
     MechanicEarning,
     MechanicRequestOffer,
@@ -465,6 +469,46 @@ class MechanicProposePriceView(APIView):
             raise NotFound()
         return Response(
             serialize_mechanic_offer(offer, include_customer_phone=True),
+            status=status.HTTP_200_OK,
+        )
+
+
+class MechanicLocationView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="Report live mechanic GPS position",
+        description=(
+            "Assigned approved mechanic only. Allowed while the job is ACCEPTED "
+            "or ON_THE_WAY. Timestamp is set by the server."
+        ),
+        request=MechanicLocationUpdateSerializer,
+        responses={
+            200: OpenApiResponse(description="Updated mechanic coordinates."),
+            400: OpenApiResponse(description="Validation error."),
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+            409: CONFLICT,
+        },
+    )
+    def post(self, request):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        serializer = MechanicLocationUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = update_mechanic_location(
+            mechanic=mechanic,
+            latitude=serializer.validated_data["latitude"],
+            longitude=serializer.validated_data["longitude"],
+        )
+        return Response(
+            {
+                "latitude": str(profile.current_latitude),
+                "longitude": str(profile.current_longitude),
+                "location_updated_at": profile.location_updated_at,
+            },
             status=status.HTTP_200_OK,
         )
 

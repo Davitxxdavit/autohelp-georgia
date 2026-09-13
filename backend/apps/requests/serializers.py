@@ -1,7 +1,10 @@
+from decimal import Decimal
+
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import Role
+from apps.requests.location import public_mechanic_location, viewer_may_see_mechanic_location
 from apps.requests.models import (
     RequestStatus,
     ServiceRequest,
@@ -24,6 +27,19 @@ class AssignedMechanicPublicSerializer(serializers.Serializer):
     phone = serializers.CharField(
         required=False,
         help_text="Assigned mechanic phone. Included only for the owning customer.",
+    )
+    current_latitude = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Live mechanic latitude. Owner + assigned + ACCEPTED/ON_THE_WAY/ARRIVED only.",
+    )
+    current_longitude = serializers.CharField(
+        required=False,
+        allow_null=True,
+    )
+    location_updated_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
     )
 
 
@@ -132,6 +148,10 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             mechanic_user = getattr(mechanic, "user", None)
             if mechanic_user is not None:
                 payload["phone"] = mechanic_user.phone
+            if viewer_may_see_mechanic_location(
+                service_request=obj, is_owner=True
+            ):
+                payload.update(public_mechanic_location(mechanic))
         return payload
 
     def get_customer_phone(self, obj):
@@ -239,3 +259,32 @@ class ApprovePriceSerializer(serializers.Serializer):
             "Optional concurrency check. If sent, must match the current proposed amount."
         ),
     )
+
+
+class MechanicLocationUpdateSerializer(serializers.Serializer):
+    latitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-90"),
+        max_value=Decimal("90"),
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-180"),
+        max_value=Decimal("180"),
+    )
+
+
+class RouteCoordinateSerializer(serializers.Serializer):
+    latitude = serializers.CharField()
+    longitude = serializers.CharField()
+
+
+class TripRouteSerializer(serializers.Serializer):
+    available = serializers.BooleanField()
+    origin = serializers.DictField(allow_null=True)
+    destination = serializers.DictField(allow_null=True)
+    distance_meters = serializers.IntegerField(allow_null=True)
+    duration_seconds = serializers.IntegerField(allow_null=True)
+    coordinates = RouteCoordinateSerializer(many=True)
