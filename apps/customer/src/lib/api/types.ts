@@ -113,6 +113,11 @@ export type ApiServiceRequest = {
   estimated_price_amount: string | null;
   estimated_price_currency: string;
   price_is_estimate: boolean;
+  final_price_amount?: string | null;
+  quote_status?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  price_confirmed_by_customer?: boolean;
+  price_confirmed_at?: string | null;
+  price_proposed_at?: string | null;
   requested_at: string | null;
   accepted_at: string | null;
   arrived_at: string | null;

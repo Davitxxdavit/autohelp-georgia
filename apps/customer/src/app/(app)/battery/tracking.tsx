@@ -16,6 +16,7 @@ import { TrackingMap } from '@/features/services/battery/components/TrackingMap'
 import { useBatteryFlow } from '@/features/services/battery/BatteryFlowProvider';
 import { MOCK_MECHANIC_POINT } from '@/features/services/battery/mock';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
+import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import {
   RequestMissingState,
   RequestPollHint,
@@ -70,7 +71,7 @@ export default function BatteryTrackingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'tracking',
     routes: BATTERY_FLOW_ROUTES,
@@ -145,6 +146,7 @@ export default function BatteryTrackingScreen() {
               <MechanicCard mechanic={mechanic} />
             ) : null}
             <CallMechanicButton phone={mechanic?.phone} />
+            <PriceQuoteCard request={live} onUpdated={replaceRequest} />
           </View>
         </Reveal>
       </BatteryScreenScaffold>

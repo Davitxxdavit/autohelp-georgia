@@ -12,6 +12,7 @@ export {
   listMechanicEarnings,
   listPendingOffers,
   patchMechanicMe,
+  proposeJobPrice,
   transitionJob,
 } from './mechanic';
 export { clearTokens, getAccessToken, setTokenPair } from './tokens';

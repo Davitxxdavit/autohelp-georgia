@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.requests.models import MechanicRequestOffer
+from apps.requests.quotes import public_quote_fields
 
 
 class MechanicOfferVehicleSerializer(serializers.Serializer):
@@ -37,6 +38,14 @@ class MechanicOfferRequestSerializer(serializers.Serializer):
     )
     estimated_price_currency = serializers.CharField()
     price_is_estimate = serializers.BooleanField()
+    final_price_amount = serializers.CharField(
+        allow_null=True,
+        help_text="Authoritative agreed price once approved. Null until set.",
+    )
+    quote_status = serializers.CharField()
+    price_confirmed_by_customer = serializers.BooleanField()
+    price_confirmed_at = serializers.DateTimeField(allow_null=True)
+    price_proposed_at = serializers.DateTimeField(allow_null=True)
     created_at = serializers.DateTimeField()
     accepted_at = serializers.DateTimeField(allow_null=True)
     arrived_at = serializers.DateTimeField(allow_null=True)
@@ -81,7 +90,7 @@ class MechanicOfferSerializer(serializers.Serializer):
     earning = serializers.DictField(
         required=False,
         allow_null=True,
-        help_text="Present on successful Complete only. Null when no catalog price.",
+        help_text="Present on successful Complete only. Derived from approved final price.",
     )
 
 
@@ -144,6 +153,7 @@ def serialize_mechanic_offer(
             "estimated_price_amount": None if amount is None else str(amount),
             "estimated_price_currency": request.estimated_price_currency,
             "price_is_estimate": request.price_is_estimate,
+            **public_quote_fields(request),
             "created_at": request.created_at,
             "accepted_at": request.accepted_at,
             "arrived_at": request.arrived_at,

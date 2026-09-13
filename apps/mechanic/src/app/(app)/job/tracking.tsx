@@ -10,6 +10,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Reveal } from '@/components/ui/Reveal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SERVICE_LABELS } from '@/constants/services';
+import { JobPricePanel } from '@/features/jobs/components/JobPricePanel';
 import { MechanicTrackingMap } from '@/features/jobs/components/MechanicTrackingMap';
 import {
   MOCK_CUSTOMER_POINT,
@@ -132,9 +133,11 @@ function TrackingFacts({ job }: { job: MockJob }) {
 
 export default function JobTrackingScreen() {
   const router = useRouter();
-  const { activeJob, updateJobStatus } = useMechanicSession();
+  const { activeJob, updateJobStatus, proposeJobPrice } = useMechanicSession();
   const [busy, setBusy] = useState(false);
   const action = activeJob ? trackingAction(activeJob.status) : null;
+  const priceApproved = activeJob?.quoteStatus === 'APPROVED';
+  const startBlocked = activeJob?.status === 'ARRIVED' && !priceApproved;
 
   useEffect(() => {
     if (
@@ -195,8 +198,14 @@ export default function JobTrackingScreen() {
         action ? (
           <>
             <PrimaryButton
-              label={busy ? 'Updating…' : action.label}
-              disabled={busy}
+              label={
+                busy
+                  ? 'Updating…'
+                  : startBlocked
+                    ? 'Waiting for price approval'
+                    : action.label
+              }
+              disabled={busy || startBlocked}
               onPress={onPrimary}
             />
             {activeJob.customerPhone ? (
@@ -228,6 +237,13 @@ export default function JobTrackingScreen() {
 
       <Reveal delayMs={timing.fast}>
         <TrackingFacts job={activeJob} />
+      </Reveal>
+      <Reveal delayMs={timing.normal}>
+        <JobPricePanel
+          job={activeJob}
+          disabled={busy}
+          onPropose={(amount) => proposeJobPrice(amount)}
+        />
       </Reveal>
     </JobScreenScaffold>
   );

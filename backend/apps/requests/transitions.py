@@ -12,6 +12,10 @@ from apps.requests.models import (
     RequestStatus,
     ServiceRequest,
 )
+from apps.requests.quotes import (
+    COMPLETION_PRICE_REQUIRED,
+    START_SERVICE_PRICE_REQUIRED,
+)
 
 # Forward-only mechanic job loop. Skipping a stage is a conflict.
 MECHANIC_OPERATIONAL_TRANSITIONS = {
@@ -67,6 +71,16 @@ def apply_mechanic_operational_transition(
             raise Conflict(
                 f"Cannot transition from {service_request.status} to {to_status}."
             )
+
+        if to_status == RequestStatus.IN_PROGRESS and not (
+            service_request.has_approved_final_price()
+        ):
+            raise Conflict(START_SERVICE_PRICE_REQUIRED)
+
+        if to_status == RequestStatus.COMPLETED and not (
+            service_request.has_approved_final_price()
+        ):
+            raise Conflict(COMPLETION_PRICE_REQUIRED)
 
         service_request.transition_status(
             to_status,

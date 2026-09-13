@@ -174,14 +174,41 @@ class MechanicEarningsTests(APITestCase):
         self.assertEqual(created.status, RequestStatus.IN_PROGRESS)
         self.assertFalse(MechanicEarning.objects.filter(service_request=created).exists())
 
-    def test_auto_key_completes_without_invented_earning(self):
-        created, response = self.complete_job(
-            service=self.auto_key, problem=self.locked_out
+    def test_auto_key_requires_approved_final_price_for_earning(self):
+        created = self.create_request(self.auto_key, self.locked_out)
+        self.accept(created)
+        self.drive_to(created, RequestStatus.ARRIVED)
+        blocked = self.client.post(
+            f"/api/v1/mechanic/jobs/{created.id}/start-service/"
         )
+        self.assertEqual(blocked.status_code, status.HTTP_409_CONFLICT)
+        propose = self.client.post(
+            f"/api/v1/mechanic/jobs/{created.id}/price/",
+            {"amount": "120.00"},
+            format="json",
+        )
+        self.assertEqual(propose.status_code, status.HTTP_200_OK, propose.data)
+        self.auth(self.customer_user)
+        approve = self.client.post(
+            f"/api/v1/requests/{created.id}/price/approve/",
+            {"amount": "120.00"},
+            format="json",
+        )
+        self.assertEqual(approve.status_code, status.HTTP_200_OK, approve.data)
+        self.auth(self.mechanic_user)
+        started = self.client.post(
+            f"/api/v1/mechanic/jobs/{created.id}/start-service/"
+        )
+        self.assertEqual(started.status_code, status.HTTP_200_OK, started.data)
+        response = self.client.post(f"/api/v1/mechanic/jobs/{created.id}/complete/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        created.refresh_from_db()
         self.assertEqual(created.status, RequestStatus.COMPLETED)
-        self.assertIsNone(created.estimated_price_amount)
-        self.assertIsNone(response.data.get("earning"))
-        self.assertFalse(MechanicEarning.objects.filter(service_request=created).exists())
+        earning = MechanicEarning.objects.get(service_request=created)
+        self.assertEqual(str(earning.gross_amount), "120.00")
+        self.assertEqual(str(earning.commission_amount), "24.00")
+        self.assertEqual(str(earning.net_amount), "96.00")
+        self.assertEqual(response.data["earning"]["net_amount"], "96.00")
 
     def test_mechanic_earnings_endpoint_returns_own_records_and_summary(self):
         first, _ = self.complete_job()

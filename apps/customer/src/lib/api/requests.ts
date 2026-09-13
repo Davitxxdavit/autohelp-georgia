@@ -23,6 +23,24 @@ export async function cancelServiceRequest(
   });
 }
 
+export async function approveRequestPrice(
+  id: string,
+  amount?: string | null,
+): Promise<ApiServiceRequest> {
+  return apiRequest<ApiServiceRequest>(`/requests/${id}/price/approve/`, {
+    method: 'POST',
+    body: amount ? { amount } : {},
+  });
+}
+
+export async function rejectRequestPrice(
+  id: string,
+): Promise<ApiServiceRequest> {
+  return apiRequest<ApiServiceRequest>(`/requests/${id}/price/reject/`, {
+    method: 'POST',
+  });
+}
+
 /** Django DecimalField max_digits validation: 6 decimal places. Numeric, not a locale string. */
 function toApiCoordinate(value: number | string): number {
   return Number(Number(value).toFixed(6));

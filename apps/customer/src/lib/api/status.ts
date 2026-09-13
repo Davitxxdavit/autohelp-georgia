@@ -93,8 +93,35 @@ export function formatRequestEstimate(
     return 'Price to be confirmed';
   }
   const trimmed = amount.replace(/\.00$/, '');
-  const suffix = currency === 'GEL' ? '₾' : currency;
+  const suffix = currency === 'GEL' ? 'GEL' : currency;
   return `${trimmed} ${suffix}`;
+}
+
+export function formatRequestPrice(request: {
+  estimated_price_amount: string | null;
+  estimated_price_currency: string;
+  final_price_amount?: string | null;
+  quote_status?: string;
+}): string {
+  if (
+    request.quote_status === 'APPROVED' &&
+    request.final_price_amount
+  ) {
+    return formatRequestEstimate(
+      request.final_price_amount,
+      request.estimated_price_currency,
+    );
+  }
+  if (request.final_price_amount && request.quote_status === 'PENDING') {
+    return formatRequestEstimate(
+      request.final_price_amount,
+      request.estimated_price_currency,
+    );
+  }
+  return formatRequestEstimate(
+    request.estimated_price_amount,
+    request.estimated_price_currency,
+  );
 }
 
 export function formatRequestTime(iso: string): string {

@@ -25,7 +25,11 @@ export const MOCK_BATTERY_JOB: MockJob = {
   distanceKm: 2.3,
   etaMinutes: 7,
   estimatedPayoutGel: 30,
-  estimatedPayoutDisplay: '30 ₾',
+  estimatedPayoutDisplay: '30 GEL',
+  finalPriceAmount: '30.00',
+  quoteStatus: 'APPROVED',
+  priceConfirmedByCustomer: true,
+  priceProposedAt: null,
 };
 
 export function cloneJob(

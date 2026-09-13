@@ -26,6 +26,7 @@ import {
   getMechanicMe,
   listPendingOffers,
   patchMechanicMe,
+  proposeJobPrice as proposeJobPriceRequest,
   transitionJob,
   type MechanicJobAction,
 } from '@/lib/api/mechanic';
@@ -62,6 +63,7 @@ type MechanicSessionValue = {
   acceptJob: (id: string) => Promise<MockJob | null>;
   declineJob: (id: string) => Promise<boolean>;
   updateJobStatus: (jobId: string, status: JobStatus) => Promise<MockJob | null>;
+  proposeJobPrice: (amount: string) => Promise<MockJob | null>;
   finishJob: () => boolean;
   signOut: () => Promise<void>;
 };
@@ -337,6 +339,28 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
     [activeJob],
   );
 
+  const proposeJobPrice = useCallback(
+    async (amount: string): Promise<MockJob | null> => {
+      if (!activeJob) return null;
+      try {
+        const offer = await proposeJobPriceRequest(activeJob.requestId, amount);
+        const next = mapOfferToJob(
+          offer,
+          jobStatusFromRequest(offer.request.status),
+        );
+        setActiveJob(next);
+        return next;
+      } catch (error) {
+        Alert.alert(
+          'Could not set price',
+          errorMessage(error, 'The price was not sent. Try again.'),
+        );
+        return null;
+      }
+    },
+    [activeJob],
+  );
+
   const finishJob = useCallback((): boolean => {
     if (!activeJob || activeJob.status !== 'COMPLETED') return false;
     setActiveJob(null);
@@ -368,6 +392,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       acceptJob,
       declineJob,
       updateJobStatus,
+      proposeJobPrice,
       finishJob,
       signOut,
     }),
@@ -383,6 +408,7 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
       incomingJob,
       isApproved,
       profile,
+      proposeJobPrice,
       refreshIncoming,
       setOnline,
       signOut,

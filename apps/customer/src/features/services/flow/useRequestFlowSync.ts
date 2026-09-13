@@ -28,6 +28,7 @@ export function useRequestFlowSync(args: {
   request: ApiServiceRequest | null;
   notFound: boolean;
   pollError: boolean;
+  replaceRequest: (next: ApiServiceRequest) => void;
 } {
   const router = useRouter();
   const { requestId, currentPhase, routes } = args;
@@ -39,6 +40,12 @@ export function useRequestFlowSync(args: {
   onRequestRef.current = args.onRequest;
   const onCancelledRef = useRef(args.onCancelled);
   onCancelledRef.current = args.onCancelled;
+
+  const replaceRequest = useCallback((next: ApiServiceRequest) => {
+    setRequest(next);
+    setPollError(false);
+    onRequestRef.current?.(next);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,5 +122,5 @@ export function useRequestFlowSync(args: {
     router.replace(routes[target]);
   }, [currentPhase, request, router, routes]);
 
-  return { request, notFound, pollError };
+  return { request, notFound, pollError, replaceRequest };
 }

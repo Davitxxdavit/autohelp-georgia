@@ -141,7 +141,10 @@ class RequestApiTests(APITestCase):
         self.assertEqual(created.status, RequestStatus.REQUESTED)
         self.assertIsNone(created.assigned_mechanic_id)
         self.assertEqual(str(created.estimated_price_amount), "30.00")
-        self.assertTrue(created.price_is_estimate)
+        self.assertEqual(str(created.final_price_amount), "30.00")
+        self.assertEqual(created.quote_status, "APPROVED")
+        self.assertTrue(created.price_confirmed_by_customer)
+        self.assertFalse(created.price_is_estimate)
 
     def test_battery_replacement_estimate_is_60(self):
         self.auth(self.user)
@@ -176,6 +179,9 @@ class RequestApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         created = ServiceRequest.objects.get(id=response.data["id"])
         self.assertIsNone(created.estimated_price_amount)
+        self.assertIsNone(created.final_price_amount)
+        self.assertEqual(created.quote_status, "NONE")
+        self.assertFalse(created.price_confirmed_by_customer)
 
     def test_problem_must_belong_to_service(self):
         self.auth(self.user)

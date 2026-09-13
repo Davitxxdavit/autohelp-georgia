@@ -141,12 +141,9 @@ export default function JobDetailsScreen() {
           <Divider />
           <View style={styles.row}>
             <AppText variant="caption" color="textMuted">
-              Estimated payout
+              Service price
             </AppText>
             <AppText variant="bodyMedium">{job.estimatedPayoutDisplay}</AppText>
-            <AppText variant="caption" color="textMuted">
-              Catalog estimate — not a guaranteed earning
-            </AppText>
           </View>
         </View>
       </Reveal>

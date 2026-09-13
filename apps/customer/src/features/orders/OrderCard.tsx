@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Surface } from '@/components/ui/Surface';
 import type { ApiServiceRequest } from '@/lib/api/types';
 import {
-  formatRequestEstimate,
+  formatRequestPrice,
   formatRequestTime,
   requestStatusLabel,
   requestStatusTone,
@@ -44,10 +44,7 @@ export function OrderCard({ request }: OrderCardProps) {
         {address}
       </AppText>
       <AppText variant="bodyMedium">
-        {formatRequestEstimate(
-          request.estimated_price_amount,
-          request.estimated_price_currency,
-        )}
+        {formatRequestPrice(request)}
       </AppText>
       <AppText variant="caption" color="textMuted">
         {formatRequestTime(request.created_at)}

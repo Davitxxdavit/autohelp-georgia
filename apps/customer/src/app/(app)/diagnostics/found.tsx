@@ -14,6 +14,7 @@ import {
   RequestMissingState,
   RequestPollHint,
 } from '@/features/services/flow/RequestSyncNotice';
+import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
 import {
@@ -53,7 +54,7 @@ export default function DiagnosticsFoundScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'found',
     routes: DIAGNOSTICS_FLOW_ROUTES,
@@ -146,6 +147,7 @@ export default function DiagnosticsFoundScreen() {
             </AppText>
           )}
         </Reveal>
+        <PriceQuoteCard request={live} onUpdated={replaceRequest} />
 
         <Reveal delayMs={timing.normal}>
           <View style={styles.eta}>

@@ -57,6 +57,16 @@ export async function transitionJob(
   );
 }
 
+export async function proposeJobPrice(
+  requestId: string,
+  amount: string,
+): Promise<ApiMechanicOffer> {
+  return apiRequest<ApiMechanicOffer>(`/mechanic/jobs/${requestId}/price/`, {
+    method: 'POST',
+    body: { amount },
+  });
+}
+
 export async function listMechanicEarnings(): Promise<ApiMechanicEarningsResponse> {
   return apiRequest<ApiMechanicEarningsResponse>('/mechanic/earnings/');
 }

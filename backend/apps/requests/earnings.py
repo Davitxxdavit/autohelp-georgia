@@ -28,15 +28,15 @@ def create_earning_for_completed_request(service_request: ServiceRequest):
     """
     Idempotent snapshot for a completed job.
 
-    Returns None when there is no authoritative price (e.g. Auto Key).
-    Does not invent 0 for unknown catalog prices.
+    Returns None when there is no approved final price.
+    Does not invent 0 for unknown prices.
     """
     if service_request.status != RequestStatus.COMPLETED:
         return None
     mechanic = service_request.assigned_mechanic
     if mechanic is None:
         return None
-    gross = service_request.estimated_price_amount
+    gross = service_request.final_price_amount
     if gross is None:
         return None
 

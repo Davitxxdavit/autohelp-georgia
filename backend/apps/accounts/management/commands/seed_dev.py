@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.accounts.models import ApprovalStatus, CustomerProfile, MechanicProfile, Role, User
 from apps.requests.models import RequestStatus, ServiceRequest, ServiceRequestStatusHistory
 from apps.requests.pricing import estimate_for_request
+from apps.requests.quotes import price_init_kwargs
 from apps.services.catalog import seed_catalog
 from apps.services.models import Service, ServiceProblem
 from apps.vehicles.models import FuelType, Vehicle
@@ -98,9 +99,7 @@ class Command(BaseCommand):
                 customer_latitude="41.616800",
                 customer_longitude="41.636700",
                 customer_address="Batumi, Georgia",
-                estimated_price_amount=estimate_for_request(battery, problem),
-                estimated_price_currency="GEL",
-                price_is_estimate=True,
+                **price_init_kwargs(estimate_for_request(battery, problem)),
             )
             ServiceRequestStatusHistory.objects.create(
                 request=request,

@@ -147,8 +147,9 @@ SPECTACULAR_SETTINGS = {
         "JWT authentication uses `Authorization: Bearer <access_token>`.\n\n"
         "Token obtain currently uses phone + password as a **development foundation only**. "
         "Production authentication will move to phone OTP.\n\n"
-        "ServiceRequest estimates are catalog values, not guaranteed payouts. "
-        "Auto Key `estimated_price_amount` is null (never 0).\n\n"
+        "ServiceRequest `estimated_price_amount` is the catalog value. "
+        "`final_price_amount` is authoritative after customer approval. "
+        "Auto Key starts with a null estimate (never 0) until the mechanic proposes a quote.\n\n"
         "OpenAPI docs are enabled when ENABLE_API_DOCS is true (default on in development)."
     ),
     "VERSION": "1.0.0",

@@ -1,7 +1,7 @@
 import type { Href } from 'expo-router';
 
 import type { ApiServiceRequest } from '@/lib/api/types';
-import { formatRequestEstimate, requestStatusLabel } from '@/lib/api/status';
+import { formatRequestPrice, requestStatusLabel } from '@/lib/api/status';
 
 import type { MechanicIdentity } from './types';
 
@@ -126,10 +126,7 @@ export function requestEstimateLabel(
   request: ApiServiceRequest | null | undefined,
 ): string | null {
   if (!request) return null;
-  return formatRequestEstimate(
-    request.estimated_price_amount,
-    request.estimated_price_currency,
-  );
+  return formatRequestPrice(request);
 }
 
 /** Prefer the coordinates already stored on the request; else the captured draft snapshot. */

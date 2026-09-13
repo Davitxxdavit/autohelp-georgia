@@ -29,16 +29,28 @@ class ServiceRequestAdmin(admin.ModelAdmin):
         "customer",
         "assigned_mechanic",
         "estimated_price_amount",
+        "final_price_amount",
+        "quote_status",
         "created_at",
     )
-    list_filter = ("status", "service", "price_is_estimate")
+    list_filter = ("status", "service", "price_is_estimate", "quote_status")
     search_fields = (
         "customer__first_name",
         "customer__user__phone",
         "vehicle__make",
         "vehicle__model",
     )
-    readonly_fields = ("requested_at", "created_at", "updated_at")
+    readonly_fields = (
+        "requested_at",
+        "estimated_price_amount",
+        "final_price_amount",
+        "quote_status",
+        "price_proposed_at",
+        "price_confirmed_at",
+        "price_confirmed_by_customer",
+        "created_at",
+        "updated_at",
+    )
     inlines = [StatusHistoryInline]
 
 

@@ -8,6 +8,7 @@ from apps.requests.models import (
     ServiceRequestStatusHistory,
 )
 from apps.requests.pricing import estimate_for_request
+from apps.requests.quotes import MAX_PRICE, MIN_PRICE, price_init_kwargs
 from apps.services.models import Service, ServiceProblem
 from apps.vehicles.models import Vehicle
 from apps.vehicles.serializers import VehicleSerializer
@@ -61,6 +62,11 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             "estimated_price_amount",
             "estimated_price_currency",
             "price_is_estimate",
+            "final_price_amount",
+            "quote_status",
+            "price_confirmed_by_customer",
+            "price_confirmed_at",
+            "price_proposed_at",
             "requested_at",
             "accepted_at",
             "arrived_at",
@@ -78,11 +84,17 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             "estimated_price_amount": {
                 "help_text": (
                     "Catalog estimate in GEL. Null for Auto Key (never 0). "
-                    "Not a guaranteed payout."
+                    "Not the authoritative final price."
+                ),
+            },
+            "final_price_amount": {
+                "help_text": (
+                    "Agreed service price. Null until proposed. "
+                    "Authoritative for display, completion, and earnings once approved."
                 ),
             },
             "price_is_estimate": {
-                "help_text": "Always true in Phase 1. Not settled payment.",
+                "help_text": "False once the customer has an approved final price.",
             },
         }
 
@@ -185,10 +197,8 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
             customer=customer,
             status=RequestStatus.REQUESTED,
             assigned_mechanic=None,
-            estimated_price_amount=estimate_for_request(service, problem),
-            estimated_price_currency="GEL",
-            price_is_estimate=True,
             requested_at=timezone.now(),
+            **price_init_kwargs(estimate_for_request(service, problem)),
             **validated_data,
         )
         ServiceRequestStatusHistory.objects.create(
@@ -206,3 +216,26 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return ServiceRequestSerializer(instance, context=self.context).data
+
+
+class ProposePriceSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=MIN_PRICE,
+        max_value=MAX_PRICE,
+        help_text="Positive GEL amount. Mechanic cannot set commission or net.",
+    )
+
+
+class ApprovePriceSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=MIN_PRICE,
+        max_value=MAX_PRICE,
+        required=False,
+        help_text=(
+            "Optional concurrency check. If sent, must match the current proposed amount."
+        ),
+    )

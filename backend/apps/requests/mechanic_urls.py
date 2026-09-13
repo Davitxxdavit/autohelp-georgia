@@ -8,6 +8,7 @@ from apps.requests.mechanic_views import (
     MechanicEarningsView,
     MechanicMeView,
     MechanicOfferViewSet,
+    MechanicProposePriceView,
     MechanicStartDrivingView,
     MechanicStartServiceView,
 )
@@ -38,6 +39,11 @@ urlpatterns = [
         "jobs/<uuid:request_id>/complete/",
         MechanicCompleteJobView.as_view(),
         name="mechanic-job-complete",
+    ),
+    path(
+        "jobs/<uuid:request_id>/price/",
+        MechanicProposePriceView.as_view(),
+        name="mechanic-job-price",
     ),
     path("", include(router.urls)),
 ]

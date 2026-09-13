@@ -30,6 +30,13 @@ class CancelledBy(models.TextChoices):
     SYSTEM = "SYSTEM", "System"
 
 
+class QuoteStatus(models.TextChoices):
+    NONE = "NONE", "None"
+    PENDING = "PENDING", "Awaiting customer approval"
+    APPROVED = "APPROVED", "Approved"
+    REJECTED = "REJECTED", "Rejected"
+
+
 class ServiceRequest(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     customer = models.ForeignKey(
@@ -85,6 +92,22 @@ class ServiceRequest(TimeStampedModel):
     )
     estimated_price_currency = models.CharField(max_length=3, default="GEL")
     price_is_estimate = models.BooleanField(default=True)
+    final_price_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Authoritative agreed price. Null until set/approved.",
+    )
+    quote_status = models.CharField(
+        max_length=16,
+        choices=QuoteStatus.choices,
+        default=QuoteStatus.NONE,
+    )
+    price_proposed_at = models.DateTimeField(null=True, blank=True)
+    price_confirmed_at = models.DateTimeField(null=True, blank=True)
+    price_confirmed_by_customer = models.BooleanField(default=False)
     requested_at = models.DateTimeField(null=True, blank=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
     arrived_at = models.DateTimeField(null=True, blank=True)
@@ -109,6 +132,13 @@ class ServiceRequest(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.service.code} {self.status} ({self.id})"
+
+    def has_approved_final_price(self) -> bool:
+        return (
+            self.quote_status == QuoteStatus.APPROVED
+            and self.final_price_amount is not None
+            and self.price_confirmed_by_customer
+        )
 
     def transition_status(self, to_status: str, changed_by=None, note: str = "") -> None:
         if to_status == self.status:

@@ -116,9 +116,11 @@ export default function JobServiceScreen() {
         <Divider />
         <View style={styles.fact}>
           <AppText variant="caption" color="textMuted">
-            Problem
+            Service price
           </AppText>
-          <AppText variant="bodyMedium">{activeJob.problem}</AppText>
+          <AppText variant="bodyMedium">
+            {activeJob.estimatedPayoutDisplay}
+          </AppText>
         </View>
       </View>
     </JobScreenScaffold>

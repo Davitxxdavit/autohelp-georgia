@@ -7,6 +7,7 @@ import { AppText } from '@/components/ui/AppText';
 import { MechanicCard } from '@/features/services/flow/MechanicCard';
 import { Reveal } from '@/features/services/flow/Reveal';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
+import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import { ServiceScreenScaffold } from '@/features/services/flow/ServiceScreenScaffold';
 import { TrackingMap } from '@/features/services/flow/TrackingMap';
 import { MOCK_SPECIALIST_POINT } from '@/features/services/flow/location';
@@ -40,7 +41,7 @@ export default function DiagnosticsTrackingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'tracking',
     routes: DIAGNOSTICS_FLOW_ROUTES,
@@ -108,6 +109,7 @@ export default function DiagnosticsTrackingScreen() {
           {specialist ? <MechanicCard mechanic={specialist} /> : null}
           <CallMechanicButton phone={specialist?.phone} />
         </Reveal>
+        <PriceQuoteCard request={live} onUpdated={replaceRequest} />
       </ServiceScreenScaffold>
     </View>
   );

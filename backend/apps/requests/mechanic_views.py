@@ -29,6 +29,8 @@ from apps.requests.mechanic_serializers import (
     serialize_mechanic_me,
     serialize_mechanic_offer,
 )
+from apps.requests.quotes import propose_job_price
+from apps.requests.serializers import ProposePriceSerializer
 from apps.requests.models import (
     MechanicEarning,
     MechanicRequestOffer,
@@ -398,6 +400,7 @@ class MechanicArriveView(MechanicJobTransitionView):
     summary="Start roadside service",
     description=(
         "Assigned mechanic only. ARRIVED → IN_PROGRESS. "
+        "Requires an approved final price. "
         "Skipping stages or repeating this action returns 409."
     ),
 )
@@ -411,12 +414,59 @@ class MechanicStartServiceView(MechanicJobTransitionView):
         "Assigned mechanic only. IN_PROGRESS → COMPLETED. "
         "The job is no longer returned by GET /mechanic/jobs/active/. "
         "If the mechanic is online, they become eligible for new offers. "
-        "Creates an idempotent earning snapshot from the request catalog price "
-        "when a price exists. Auto Key (null price) completes without an earning."
+        "Creates an idempotent earning snapshot from the approved final price."
     ),
 )
 class MechanicCompleteJobView(MechanicJobTransitionView):
     to_status = RequestStatus.COMPLETED
+
+
+class MechanicProposePriceView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="Propose a final service price",
+        description=(
+            "Assigned approved mechanic only. Allowed while ACCEPTED, ON_THE_WAY, "
+            "or ARRIVED. A new amount resets customer approval. "
+            "Start Service requires an approved final price."
+        ),
+        request=ProposePriceSerializer,
+        responses={
+            200: MechanicOfferSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+            404: NOT_FOUND,
+            409: CONFLICT,
+        },
+    )
+    def post(self, request, request_id):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        serializer = ProposePriceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        propose_job_price(
+            request_id=request_id,
+            mechanic=mechanic,
+            amount=serializer.validated_data["amount"],
+        )
+        offer = (
+            _offer_queryset(mechanic)
+            .filter(
+                request_id=request_id,
+                status=OfferStatus.ACCEPTED,
+            )
+            .first()
+        )
+        if offer is None:
+            raise NotFound()
+        return Response(
+            serialize_mechanic_offer(offer, include_customer_phone=True),
+            status=status.HTTP_200_OK,
+        )
 
 
 class MechanicEarningsPagination(PageNumberPagination):

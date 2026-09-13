@@ -25,6 +25,7 @@ import {
 } from '@/features/services/flow/RequestSyncNotice';
 import { CallMechanicButton } from '@/features/services/flow/CallMechanicButton';
 import { promptCancelRoadsideRequest } from '@/features/services/flow/cancelRequest';
+import { PriceQuoteCard } from '@/features/services/flow/PriceQuoteCard';
 import {
   BATTERY_FLOW_ROUTES,
   assignedMechanicIdentity,
@@ -79,7 +80,7 @@ export default function BatteryFoundScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'found',
     routes: BATTERY_FLOW_ROUTES,
@@ -173,6 +174,7 @@ export default function BatteryFoundScreen() {
             </AppText>
           )}
         </Reveal>
+        <PriceQuoteCard request={live} onUpdated={replaceRequest} />
 
         <Reveal delayMs={timing.normal}>
           <View style={styles.eta}>

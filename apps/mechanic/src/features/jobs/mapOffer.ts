@@ -13,10 +13,10 @@ function asServiceId(code: string): ServiceId {
 
 function formatCatalogEstimate(amount: string | null, currency: string): string {
   if (amount == null || amount.trim() === '') {
-    return 'Price to be confirmed';
+    return 'Price not set';
   }
   const trimmed = amount.replace(/\.00$/, '');
-  const suffix = currency === 'GEL' ? '₾' : currency;
+  const suffix = currency === 'GEL' ? 'GEL' : currency;
   return `${trimmed} ${suffix}`;
 }
 
@@ -35,7 +35,8 @@ export function mapOfferToJob(
 ): MockJob {
   const request = offer.request;
   const vehicle = request.vehicle;
-  const amount = request.estimated_price_amount;
+  const finalAmount = request.final_price_amount;
+  const displayAmount = request.final_price_amount ?? request.estimated_price_amount;
   return {
     id: offer.id,
     requestId: request.id,
@@ -50,11 +51,15 @@ export function mapOfferToJob(
     locationLabel: request.customer_address || 'Customer location',
     distanceKm: MOCK_BATTERY_JOB.distanceKm,
     etaMinutes: MOCK_BATTERY_JOB.etaMinutes,
-    estimatedPayoutGel: amount ? Number.parseFloat(amount) : 0,
+    estimatedPayoutGel: displayAmount ? Number.parseFloat(displayAmount) : 0,
     estimatedPayoutDisplay: formatCatalogEstimate(
-      amount,
+      displayAmount,
       request.estimated_price_currency,
     ),
+    finalPriceAmount: finalAmount ?? null,
+    quoteStatus: request.quote_status ?? 'NONE',
+    priceConfirmedByCustomer: Boolean(request.price_confirmed_by_customer),
+    priceProposedAt: request.price_proposed_at ?? null,
     earning: offer.earning
       ? {
           grossAmount: offer.earning.gross_amount,

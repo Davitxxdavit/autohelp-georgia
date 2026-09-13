@@ -25,6 +25,8 @@ export type JobEarning = {
   currency: string;
 };
 
+export type QuoteStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export type MockJob = {
   id: string;
   requestId: string;
@@ -41,6 +43,10 @@ export type MockJob = {
   etaMinutes: number;
   estimatedPayoutGel: number;
   estimatedPayoutDisplay: string;
+  finalPriceAmount: string | null;
+  quoteStatus: QuoteStatus | string;
+  priceConfirmedByCustomer: boolean;
+  priceProposedAt: string | null;
   earning?: JobEarning | null;
 };
 

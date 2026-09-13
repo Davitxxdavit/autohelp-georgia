@@ -19,9 +19,11 @@ from apps.requests.models import (
     ServiceRequest,
 )
 from apps.requests.serializers import (
+    ApprovePriceSerializer,
     ServiceRequestCreateSerializer,
     ServiceRequestSerializer,
 )
+from apps.requests.quotes import approve_request_price, reject_request_price
 
 CUSTOMER_CANCELABLE_STATUSES = (
     RequestStatus.REQUESTED,
@@ -87,7 +89,9 @@ CUSTOMER_CANCELABLE_STATUSES = (
                     "status": "REQUESTED",
                     "estimated_price_amount": "30.00",
                     "estimated_price_currency": "GEL",
-                    "price_is_estimate": True,
+                    "price_is_estimate": False,
+                    "final_price_amount": "30.00",
+                    "quote_status": "APPROVED",
                 },
                 response_only=True,
             ),
@@ -125,7 +129,7 @@ class ServiceRequestViewSet(
         return qs.none()
 
     def get_permissions(self):
-        if self.action in ("create", "cancel"):
+        if self.action in ("create", "cancel", "approve_price", "reject_price"):
             return [IsAuthenticated(), IsCustomer()]
         return [IsAuthenticated()]
 
@@ -191,3 +195,65 @@ class ServiceRequestViewSet(
             service_request, context=self.get_serializer_context()
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def _customer_quote_response(self, service_request):
+        service_request = self.get_queryset().get(pk=service_request.pk)
+        serializer = ServiceRequestSerializer(
+            service_request, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Requests"],
+        summary="Approve the proposed service price",
+        description=(
+            "Customer owner only. Approves the currently stored proposed amount. "
+            "Optional `amount` must match the stored quote or the request returns 409. "
+            "The customer cannot set an arbitrary price."
+        ),
+        request=ApprovePriceSerializer,
+        responses={
+            200: ServiceRequestSerializer,
+            400: VALIDATION_ERROR,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+            404: NOT_FOUND,
+            409: CONFLICT,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="price/approve")
+    def approve_price(self, request, pk=None):
+        serializer = ApprovePriceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer = request.user.customer_profile
+        service_request = approve_request_price(
+            request_id=pk,
+            customer_id=customer.id,
+            expected_amount=serializer.validated_data.get("amount"),
+        )
+        return self._customer_quote_response(service_request)
+
+    @extend_schema(
+        tags=["Requests"],
+        summary="Reject the proposed service price",
+        description=(
+            "Customer owner only. Marks the current quote as rejected. "
+            "The assigned mechanic may submit a new amount."
+        ),
+        request=None,
+        responses={
+            200: ServiceRequestSerializer,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+            404: NOT_FOUND,
+            409: CONFLICT,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="price/reject")
+    def reject_price(self, request, pk=None):
+        customer = request.user.customer_profile
+        service_request = reject_request_price(
+            request_id=pk,
+            customer_id=customer.id,
+        )
+        return self._customer_quote_response(service_request)
