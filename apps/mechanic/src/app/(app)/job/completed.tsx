@@ -10,6 +10,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Reveal } from '@/components/ui/Reveal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SERVICE_LABELS } from '@/constants/services';
+import { formatMoneyAmount } from '@/features/earnings/format';
 import { getActiveJobRoute } from '@/features/jobs/routes';
 import { JOB_STATUS_LABELS, vehicleLine } from '@/features/jobs/types';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
@@ -18,7 +19,8 @@ import { spacing } from '@/theme/spacing';
 
 export default function JobCompletedScreen() {
   const router = useRouter();
-  const { activeJob } = useMechanicSession();
+  const { activeJob, finishJob } = useMechanicSession();
+  const earning = activeJob?.earning ?? null;
 
   useEffect(() => {
     if (!activeJob) return;
@@ -26,6 +28,11 @@ export default function JobCompletedScreen() {
       router.replace(getActiveJobRoute(activeJob.status));
     }
   }, [activeJob, router]);
+
+  const onDone = () => {
+    if (!finishJob()) return;
+    router.replace('/(app)/(tabs)' as Href);
+  };
 
   if (!activeJob || activeJob.status !== 'COMPLETED') {
     return (
@@ -39,21 +46,11 @@ export default function JobCompletedScreen() {
   }
 
   return (
-    <JobScreenScaffold
-      footer={
-        <PrimaryButton
-          label="View job summary"
-          onPress={() => router.replace('/job/summary' as Href)}
-        />
-      }
-    >
+    <JobScreenScaffold footer={<PrimaryButton label="Done" onPress={onDone} />}>
       <Reveal>
         <View style={styles.hero}>
           <CompletionMark />
-          <StatusBadge
-            label={JOB_STATUS_LABELS.COMPLETED}
-            tone="success"
-          />
+          <StatusBadge label={JOB_STATUS_LABELS.COMPLETED} tone="success" />
           <AppText variant="h2">Service completed</AppText>
           <AppText variant="body" color="textSecondary">
             {SERVICE_LABELS[activeJob.serviceId]}
@@ -61,7 +58,28 @@ export default function JobCompletedScreen() {
         </View>
       </Reveal>
 
-      <Reveal delayMs={timing.instant}>
+      {earning ? (
+        <Reveal delayMs={timing.instant}>
+          <View style={styles.earn}>
+            <AppText variant="caption" color="textMuted">
+              You earned
+            </AppText>
+            <AppText variant="display">
+              {formatMoneyAmount(earning.netAmount, earning.currency)}
+            </AppText>
+            <AppText variant="body" color="textSecondary">
+              Service price:{' '}
+              {formatMoneyAmount(earning.grossAmount, earning.currency)}
+            </AppText>
+            <AppText variant="body" color="textSecondary">
+              AutoHelp commission:{' '}
+              {formatMoneyAmount(earning.commissionAmount, earning.currency)}
+            </AppText>
+          </View>
+        </Reveal>
+      ) : null}
+
+      <Reveal delayMs={timing.fast}>
         <View style={styles.facts}>
           <View style={styles.fact}>
             <AppText variant="caption" color="textMuted">
@@ -76,18 +94,6 @@ export default function JobCompletedScreen() {
             </AppText>
             <AppText variant="bodyMedium">{vehicleLine(activeJob)}</AppText>
           </View>
-          <Divider />
-          <View style={styles.fact}>
-            <AppText variant="caption" color="textMuted">
-              Estimated payout
-            </AppText>
-            <AppText variant="bodyMedium">
-              {activeJob.estimatedPayoutDisplay}
-            </AppText>
-            <AppText variant="caption" color="textMuted">
-              Estimate — not a paid earning
-            </AppText>
-          </View>
         </View>
       </Reveal>
     </JobScreenScaffold>
@@ -98,6 +104,9 @@ const styles = StyleSheet.create({
   hero: {
     gap: spacing.sm,
     paddingBottom: spacing.xs,
+  },
+  earn: {
+    gap: spacing.xs,
   },
   facts: {
     gap: spacing.md,

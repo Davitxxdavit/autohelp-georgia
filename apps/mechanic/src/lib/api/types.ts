@@ -45,12 +45,42 @@ export type ApiOfferRequest = {
   vehicle: ApiOfferVehicle;
 };
 
+export type ApiEarningSnapshot = {
+  gross_amount: string;
+  commission_amount: string;
+  net_amount: string;
+  currency: string;
+};
+
 export type ApiMechanicOffer = {
   id: string;
   status: string;
   created_at: string;
   responded_at: string | null;
   request: ApiOfferRequest;
+  earning?: ApiEarningSnapshot | null;
+};
+
+export type ApiMechanicEarning = {
+  id: string;
+  request_id: string;
+  service_name: string;
+  gross_amount: string;
+  commission_amount: string;
+  net_amount: string;
+  currency: string;
+  created_at: string;
+};
+
+export type ApiMechanicEarningsSummary = {
+  today: string;
+  total: string;
+  completed_jobs: number;
+  currency: string;
+};
+
+export type ApiMechanicEarningsResponse = Paginated<ApiMechanicEarning> & {
+  summary: ApiMechanicEarningsSummary;
 };
 
 export type ApiMechanicMeService = {

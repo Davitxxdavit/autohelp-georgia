@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import MechanicRequestOffer, ServiceRequest, ServiceRequestStatusHistory
+from .models import (
+    MechanicEarning,
+    MechanicRequestOffer,
+    ServiceRequest,
+    ServiceRequestStatusHistory,
+)
 
 
 class StatusHistoryInline(admin.TabularInline):
@@ -53,3 +58,44 @@ class MechanicRequestOfferAdmin(admin.ModelAdmin):
 class ServiceRequestStatusHistoryAdmin(admin.ModelAdmin):
     list_display = ("request", "from_status", "to_status", "changed_by", "created_at")
     list_filter = ("to_status",)
+
+
+@admin.register(MechanicEarning)
+class MechanicEarningAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "mechanic",
+        "service_request",
+        "gross_amount",
+        "commission_amount",
+        "net_amount",
+        "currency",
+        "created_at",
+    )
+    list_filter = ("currency",)
+    search_fields = (
+        "mechanic__first_name",
+        "mechanic__user__phone",
+        "service_request__id",
+    )
+    readonly_fields = (
+        "id",
+        "mechanic",
+        "service_request",
+        "gross_amount",
+        "commission_rate",
+        "commission_amount",
+        "net_amount",
+        "currency",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

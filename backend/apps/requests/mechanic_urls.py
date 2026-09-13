@@ -5,6 +5,7 @@ from apps.requests.mechanic_views import (
     MechanicActiveJobView,
     MechanicArriveView,
     MechanicCompleteJobView,
+    MechanicEarningsView,
     MechanicMeView,
     MechanicOfferViewSet,
     MechanicStartDrivingView,
@@ -16,6 +17,7 @@ router.register("offers", MechanicOfferViewSet, basename="mechanic-offer")
 
 urlpatterns = [
     path("me/", MechanicMeView.as_view(), name="mechanic-me"),
+    path("earnings/", MechanicEarningsView.as_view(), name="mechanic-earnings"),
     path("jobs/active/", MechanicActiveJobView.as_view(), name="mechanic-active-job"),
     path(
         "jobs/<uuid:request_id>/start-driving/",

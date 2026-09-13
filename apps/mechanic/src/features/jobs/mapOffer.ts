@@ -55,6 +55,14 @@ export function mapOfferToJob(
       amount,
       request.estimated_price_currency,
     ),
+    earning: offer.earning
+      ? {
+          grossAmount: offer.earning.gross_amount,
+          commissionAmount: offer.earning.commission_amount,
+          netAmount: offer.earning.net_amount,
+          currency: offer.earning.currency,
+        }
+      : null,
   };
 }
 

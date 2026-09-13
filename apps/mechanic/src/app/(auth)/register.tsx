@@ -11,6 +11,7 @@ import {
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PhoneNumberInput } from '@/components/auth/PhoneNumberInput';
 import { AppText } from '@/components/ui/AppText';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
@@ -24,14 +25,6 @@ import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-function toE164(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('995') && digits.length >= 12) return `+${digits}`;
-  if (digits.length === 9 && digits.startsWith('5')) return `+995${digits}`;
-  if (raw.trim().startsWith('+') && digits.length >= 8) return `+${digits}`;
-  return `+995${digits}`;
-}
-
 function formatRegisterError(error: unknown, fallback: string): string {
   if (!isApiError(error)) return fallback;
   const firstField = Object.values(error.fieldErrors)[0]?.[0];
@@ -43,7 +36,8 @@ export default function MechanicRegisterScreen() {
   const router = useRouter();
   const { checkApproval } = useMechanicSession();
   const [firstName, setFirstName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string | null>(null);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [services, setServices] = useState<ApiService[]>([]);
@@ -85,8 +79,7 @@ export default function MechanicRegisterScreen() {
       setError('Enter your first name.');
       return;
     }
-    const e164 = toE164(phone);
-    if (e164.length < 12) {
+    if (!phoneValid || !phone) {
       setError('Enter a valid phone number.');
       return;
     }
@@ -106,7 +99,7 @@ export default function MechanicRegisterScreen() {
     setBusy(true);
     try {
       const created = await registerMechanic({
-        phone: e164,
+        phone,
         password,
         first_name: name,
         services: selectedIds,
@@ -166,18 +159,15 @@ export default function MechanicRegisterScreen() {
             accessibilityLabel="First name"
             style={styles.input}
           />
-          <TextInput
-            value={phone}
-            onChangeText={(value) => {
-              setPhone(value);
+          <PhoneNumberInput
+            error={error && !phoneValid ? error : null}
+            placeholder="555 12 34 56"
+            disabled={busy}
+            onChange={(value) => {
+              setPhone(value.e164);
+              setPhoneValid(value.isValid);
               if (error) setError(null);
             }}
-            placeholder="+995 5XX XX XX XX"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            accessibilityLabel="Phone number"
-            style={styles.input}
           />
           <TextInput
             value={password}

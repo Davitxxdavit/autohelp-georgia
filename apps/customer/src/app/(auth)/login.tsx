@@ -10,7 +10,7 @@ import {
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PhoneInput, isValidGeMobile, toE164GeMobile } from '@/components/auth/PhoneInput';
+import { PhoneNumberInput } from '@/components/auth/PhoneNumberInput';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { getCopy } from '@/content/copy';
@@ -26,7 +26,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { session, signInWithPassword, resetAppStateForDev } = useSession();
   const copy = getCopy(session.language);
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string | null>(null);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,7 +41,7 @@ export default function LoginScreen() {
 
   const onContinue = async () => {
     if (busy) return;
-    if (!isValidGeMobile(phone)) {
+    if (!phoneValid || !phone) {
       setError(copy.login.invalidPhone);
       return;
     }
@@ -51,7 +52,7 @@ export default function LoginScreen() {
     setError(null);
     setBusy(true);
     try {
-      await signInWithPassword(toE164GeMobile(phone), password);
+      await signInWithPassword(phone, password);
       router.replace('/(app)/(tabs)');
     } catch (caught) {
       setError(
@@ -101,14 +102,15 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
-        <PhoneInput
-          countryCode={copy.login.countryCode}
-          value={phone}
-          onChangeText={(value) => {
-            setPhone(value);
+        <PhoneNumberInput
+          error={error && !phoneValid ? error : null}
+          placeholder={copy.login.phonePlaceholder}
+          disabled={busy}
+          onChange={(value) => {
+            setPhone(value.e164);
+            setPhoneValid(value.isValid);
             if (error) setError(null);
           }}
-          placeholder={copy.login.phonePlaceholder}
         />
         <TextInput
           value={password}

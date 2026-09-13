@@ -78,6 +78,44 @@ class MechanicOfferSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     responded_at = serializers.DateTimeField(allow_null=True)
     request = MechanicOfferRequestSerializer()
+    earning = serializers.DictField(
+        required=False,
+        allow_null=True,
+        help_text="Present on successful Complete only. Null when no catalog price.",
+    )
+
+
+class MechanicEarningSnapshotSerializer(serializers.Serializer):
+    gross_amount = serializers.CharField()
+    commission_amount = serializers.CharField()
+    net_amount = serializers.CharField()
+    currency = serializers.CharField()
+
+
+class MechanicEarningRowSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    request_id = serializers.UUIDField()
+    service_name = serializers.CharField()
+    gross_amount = serializers.CharField()
+    commission_amount = serializers.CharField()
+    net_amount = serializers.CharField()
+    currency = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
+class MechanicEarningsSummarySerializer(serializers.Serializer):
+    today = serializers.CharField()
+    total = serializers.CharField()
+    completed_jobs = serializers.IntegerField()
+    currency = serializers.CharField()
+
+
+class MechanicEarningsResponseSerializer(serializers.Serializer):
+    summary = MechanicEarningsSummarySerializer()
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = MechanicEarningRowSerializer(many=True)
 
 
 def serialize_mechanic_offer(

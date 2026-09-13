@@ -18,6 +18,13 @@ export type MockGeoPoint = {
   longitude: number;
 };
 
+export type JobEarning = {
+  grossAmount: string;
+  commissionAmount: string;
+  netAmount: string;
+  currency: string;
+};
+
 export type MockJob = {
   id: string;
   requestId: string;
@@ -34,6 +41,7 @@ export type MockJob = {
   etaMinutes: number;
   estimatedPayoutGel: number;
   estimatedPayoutDisplay: string;
+  earning?: JobEarning | null;
 };
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {

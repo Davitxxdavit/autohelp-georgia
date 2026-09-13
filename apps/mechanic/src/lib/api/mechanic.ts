@@ -1,5 +1,9 @@
 import { apiGetList, apiRequest } from './client';
-import type { ApiMechanicMe, ApiMechanicOffer } from './types';
+import type {
+  ApiMechanicEarningsResponse,
+  ApiMechanicMe,
+  ApiMechanicOffer,
+} from './types';
 
 export type MechanicJobAction =
   | 'start-driving'
@@ -51,4 +55,8 @@ export async function transitionJob(
     `/mechanic/jobs/${requestId}/${action}/`,
     { method: 'POST' },
   );
+}
+
+export async function listMechanicEarnings(): Promise<ApiMechanicEarningsResponse> {
+  return apiRequest<ApiMechanicEarningsResponse>('/mechanic/earnings/');
 }

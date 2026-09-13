@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Reveal } from '@/components/ui/Reveal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SERVICE_LABELS } from '@/constants/services';
+import { formatMoneyAmount } from '@/features/earnings/format';
 import { getActiveJobRoute } from '@/features/jobs/routes';
 import {
   JOB_STATUS_LABELS,
@@ -92,17 +93,41 @@ export default function JobSummaryScreen() {
             <AppText variant="bodyMedium">{activeJob.locationLabel}</AppText>
           </View>
           <Divider />
-          <View style={styles.fact}>
-            <AppText variant="caption" color="textMuted">
-              Estimated payout
-            </AppText>
-            <AppText variant="bodyMedium">
-              {activeJob.estimatedPayoutDisplay}
-            </AppText>
-            <AppText variant="caption" color="textMuted">
-              Estimate — mock catalog
-            </AppText>
-          </View>
+          {activeJob.earning ? (
+            <View style={styles.fact}>
+              <AppText variant="caption" color="textMuted">
+                You earned
+              </AppText>
+              <AppText variant="bodyMedium">
+                {formatMoneyAmount(
+                  activeJob.earning.netAmount,
+                  activeJob.earning.currency,
+                )}
+              </AppText>
+              <AppText variant="caption" color="textMuted">
+                Service price{' '}
+                {formatMoneyAmount(
+                  activeJob.earning.grossAmount,
+                  activeJob.earning.currency,
+                )}
+                {' · '}
+                Commission{' '}
+                {formatMoneyAmount(
+                  activeJob.earning.commissionAmount,
+                  activeJob.earning.currency,
+                )}
+              </AppText>
+            </View>
+          ) : (
+            <View style={styles.fact}>
+              <AppText variant="caption" color="textMuted">
+                Service price
+              </AppText>
+              <AppText variant="bodyMedium">
+                {activeJob.estimatedPayoutDisplay}
+              </AppText>
+            </View>
+          )}
         </View>
       </Reveal>
     </JobScreenScaffold>

@@ -1,9 +1,11 @@
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,9 +13,16 @@ from rest_framework.views import APIView
 from apps.accounts.models import MechanicProfile
 from apps.common.permissions import IsApprovedMechanic, IsMechanic
 from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED
+from apps.requests.earnings import (
+    DEFAULT_CURRENCY,
+    quantize_money,
+    serialize_earning_row,
+    serialize_earning_snapshot,
+)
 from apps.requests.exceptions import Conflict
 from apps.requests.matching import ACTIVE_JOB_STATUSES, issue_offers_for_unmatched_requests
 from apps.requests.mechanic_serializers import (
+    MechanicEarningsResponseSerializer,
     MechanicMeSerializer,
     MechanicMeUpdateSerializer,
     MechanicOfferSerializer,
@@ -21,6 +30,7 @@ from apps.requests.mechanic_serializers import (
     serialize_mechanic_offer,
 )
 from apps.requests.models import (
+    MechanicEarning,
     MechanicRequestOffer,
     OfferStatus,
     RequestStatus,
@@ -350,10 +360,15 @@ class MechanicJobTransitionView(APIView):
             to_status=self.to_status,
         )
         offer = _offer_queryset(mechanic).get(pk=offer.pk)
-        return Response(
-            serialize_mechanic_offer(offer, include_customer_phone=True),
-            status=status.HTTP_200_OK,
-        )
+        payload = serialize_mechanic_offer(offer, include_customer_phone=True)
+        if self.to_status == RequestStatus.COMPLETED:
+            earning = MechanicEarning.objects.filter(
+                service_request_id=offer.request_id
+            ).first()
+            payload["earning"] = (
+                serialize_earning_snapshot(earning) if earning else None
+            )
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 @_job_transition_schema(
@@ -396,8 +411,61 @@ class MechanicStartServiceView(MechanicJobTransitionView):
         "Assigned mechanic only. IN_PROGRESS → COMPLETED. "
         "The job is no longer returned by GET /mechanic/jobs/active/. "
         "If the mechanic is online, they become eligible for new offers. "
-        "Does not calculate earnings or payments."
+        "Creates an idempotent earning snapshot from the request catalog price "
+        "when a price exists. Auto Key (null price) completes without an earning."
     ),
 )
 class MechanicCompleteJobView(MechanicJobTransitionView):
     to_status = RequestStatus.COMPLETED
+
+
+class MechanicEarningsPagination(PageNumberPagination):
+    page_size = 20
+
+
+class MechanicEarningsView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
+    pagination_class = MechanicEarningsPagination
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="List own earnings from completed jobs",
+        description=(
+            "Returns accounting snapshots for the authenticated approved mechanic only. "
+            "Summary totals use net amounts in GEL. Not a payout or wallet balance."
+        ),
+        responses={
+            200: MechanicEarningsResponseSerializer,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+        },
+    )
+    def get(self, request):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        queryset = (
+            MechanicEarning.objects.filter(mechanic=mechanic)
+            .select_related("service_request", "service_request__service")
+            .order_by("-created_at")
+        )
+        today = timezone.localdate()
+        today_total = queryset.filter(created_at__date=today).aggregate(
+            total=Sum("net_amount")
+        )["total"]
+        all_total = queryset.aggregate(total=Sum("net_amount"))["total"]
+        summary = {
+            "today": str(quantize_money(today_total or 0)),
+            "total": str(quantize_money(all_total or 0)),
+            "completed_jobs": queryset.count(),
+            "currency": DEFAULT_CURRENCY,
+        }
+        paginator = MechanicEarningsPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        items = page if page is not None else list(queryset)
+        results = [serialize_earning_row(item) for item in items]
+        if page is None:
+            return Response({"summary": summary, "results": results})
+        response = paginator.get_paginated_response(results)
+        response.data = {"summary": summary, **response.data}
+        return response

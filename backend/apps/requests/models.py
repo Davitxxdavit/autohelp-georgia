@@ -213,3 +213,53 @@ class MechanicRequestOffer(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.mechanic} {self.status} ({self.request_id})"
+
+
+class MechanicEarning(TimeStampedModel):
+    """
+    Immutable accounting snapshot for a completed job.
+
+    One row per ServiceRequest. Not a payout, wallet, or tax record.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mechanic = models.ForeignKey(
+        "accounts.MechanicProfile",
+        on_delete=models.PROTECT,
+        related_name="earnings",
+    )
+    service_request = models.OneToOneField(
+        ServiceRequest,
+        on_delete=models.PROTECT,
+        related_name="earning",
+    )
+    gross_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Commission percent snapshot, e.g. 20.00 for 20%.",
+    )
+    commission_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    net_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    currency = models.CharField(max_length=3, default="GEL")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["mechanic", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.mechanic} {self.net_amount} {self.currency}"

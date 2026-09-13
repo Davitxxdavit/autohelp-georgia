@@ -11,7 +11,7 @@ import {
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PhoneInput, isValidGeMobile, toE164GeMobile } from '@/components/auth/PhoneInput';
+import { PhoneNumberInput } from '@/components/auth/PhoneNumberInput';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { getCopy } from '@/content/copy';
@@ -34,7 +34,8 @@ export default function RegisterScreen() {
   const { session, registerWithPassword } = useSession();
   const copy = getCopy(session.language);
   const [firstName, setFirstName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string | null>(null);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export default function RegisterScreen() {
       setError(copy.register.invalidName);
       return;
     }
-    if (!isValidGeMobile(phone)) {
+    if (!phoneValid || !phone) {
       setError(copy.register.invalidPhone);
       return;
     }
@@ -63,7 +64,7 @@ export default function RegisterScreen() {
     setBusy(true);
     try {
       await registerWithPassword({
-        phone: toE164GeMobile(phone),
+        phone,
         password,
         firstName: name,
       });
@@ -116,14 +117,15 @@ export default function RegisterScreen() {
             accessibilityLabel={copy.register.firstNamePlaceholder}
             style={styles.input}
           />
-          <PhoneInput
-            countryCode={copy.login.countryCode}
-            value={phone}
-            onChangeText={(value) => {
-              setPhone(value);
+          <PhoneNumberInput
+            error={error && !phoneValid ? error : null}
+            placeholder={copy.login.phonePlaceholder}
+            disabled={busy}
+            onChange={(value) => {
+              setPhone(value.e164);
+              setPhoneValid(value.isValid);
               if (error) setError(null);
             }}
-            placeholder={copy.login.phonePlaceholder}
           />
           <TextInput
             value={password}

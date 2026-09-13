@@ -73,6 +73,12 @@ def apply_mechanic_operational_transition(
             changed_by=changed_by,
             note=note,
         )
+        service_request.refresh_from_db()
+
+        if to_status == RequestStatus.COMPLETED:
+            from apps.requests.earnings import create_earning_for_completed_request
+
+            create_earning_for_completed_request(service_request)
 
         try:
             return MechanicRequestOffer.objects.select_related(
