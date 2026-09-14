@@ -116,6 +116,17 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Scoped throttles on auth/create/price/rating views only.
+    # Uses Django's default cache (LocMemCache unless CACHES is set).
+    # Single-instance MVP protection — not distributed/Redis rate limiting.
+    # Mechanic live-location posts are intentionally not throttled.
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "30/min",
+        "registration": "10/min",
+        "request_create": "20/min",
+        "price_action": "30/min",
+        "rating": "20/min",
+    },
 }
 
 SIMPLE_JWT = {
@@ -160,6 +171,9 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "ENUM_NAME_OVERRIDES": {
+        "RequestStatusEnum": "apps.requests.models.RequestStatus",
+    },
     "TAGS": [
         {
             "name": "Authentication",

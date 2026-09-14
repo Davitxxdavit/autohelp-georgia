@@ -14,6 +14,7 @@ import {
   getBatteryOption,
   getBatteryProblem,
 } from '@/features/services/battery/mock';
+import { resumeCustomerRequest } from '@/features/requests/ActiveRequestProvider';
 import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
@@ -82,7 +83,8 @@ export default function BatterySummaryScreen() {
         estimatedPriceAmount: created.estimated_price_amount,
         estimatedPriceCurrency: created.estimated_price_currency,
       });
-      router.push('/battery/searching');
+      const href = resumeCustomerRequest(created);
+      router.replace(href ?? '/battery/searching');
     } catch (error) {
       if (__DEV__) {
         console.warn('[AutoHelp] Battery request create failed', error);

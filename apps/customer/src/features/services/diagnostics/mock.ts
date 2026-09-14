@@ -1,9 +1,6 @@
 import { formatEstimatedPrice as formatServicePrice } from '@/features/services/flow/pricing';
-import type { MockMechanic } from '@/features/services/flow/types';
 
 import type { DiagnosticsOption, DiagnosticsProblem } from './types';
-
-export { SEARCH_DELAY_MS } from '@/features/services/flow/location';
 
 export const DIAGNOSTICS_OPTIONS: DiagnosticsOption[] = [
   {
@@ -24,16 +21,6 @@ export const DIAGNOSTICS_PROBLEMS: DiagnosticsProblem[] = [
   { id: 'pre_trip', title: 'Pre-trip check', emoji: '🧭' },
   { id: 'unsure', title: "I'm not sure", emoji: '❓' },
 ];
-
-export const MOCK_SPECIALIST: MockMechanic = {
-  id: 'mech_nino',
-  name: 'ნინო',
-  rating: 4.8,
-  verified: true,
-  distanceKm: 1.8,
-  etaMinutes: 9,
-  source: 'mock',
-};
 
 export function getDiagnosticsOption(id: string): DiagnosticsOption | undefined {
   return DIAGNOSTICS_OPTIONS.find((item) => item.id === id);

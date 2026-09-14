@@ -16,12 +16,6 @@ import {
   updateVehicle as updateApiVehicle,
 } from '@/lib/api';
 
-import {
-  readVehicleUiMeta,
-  removeVehicleUiMeta,
-  upsertVehicleUiMeta,
-  writeVehicleUiMeta,
-} from './localMeta';
 import { mapApiVehiclesToUi, toVehicleWritePayload } from './mapApiVehicle';
 import {
   addVehicle,
@@ -47,24 +41,18 @@ type VehiclesContextValue = {
 const VehiclesContext = createContext<VehiclesContextValue | null>(null);
 
 /**
- * When a JWT is present, vehicles load from Django.
- * nickname / isPrimary stay local (backend has neither).
+ * When a JWT is present, vehicles (including nickname and primary) load from Django.
  * Without a token, the previous AsyncStorage mock list is kept.
  */
 export function VehiclesProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [useApi, setUseApi] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const refresh = useCallback(async () => {
     const tokenReady = await hasAccessToken();
-    setUseApi(tokenReady);
     if (tokenReady) {
-      const [apis, meta] = await Promise.all([
-        listApiVehicles(),
-        readVehicleUiMeta(),
-      ]);
-      setVehicles(mapApiVehiclesToUi(apis, meta));
+      const apis = await listApiVehicles();
+      setVehicles(mapApiVehiclesToUi(apis));
       return;
     }
     setVehicles(await readVehicles());
@@ -88,18 +76,9 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   const add = useCallback(async (input: VehicleInput) => {
     if (await hasAccessToken()) {
       const created = await createApiVehicle(toVehicleWritePayload(input));
-      await upsertVehicleUiMeta({
-        id: created.id,
-        nickname: input.nickname,
-        isPrimary: input.isPrimary,
-      });
-      const [apis, meta] = await Promise.all([
-        listApiVehicles(),
-        readVehicleUiMeta(),
-      ]);
-      const next = mapApiVehiclesToUi(apis, meta);
+      const apis = await listApiVehicles();
+      const next = mapApiVehiclesToUi(apis);
       setVehicles(next);
-      setUseApi(true);
       return next.find((item) => item.id === created.id) ?? next[0]!;
     }
     const next = await addVehicle(input);
@@ -110,17 +89,7 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   const update = useCallback(async (id: string, input: VehicleInput) => {
     if (await hasAccessToken()) {
       await updateApiVehicle(id, toVehicleWritePayload(input));
-      await upsertVehicleUiMeta({
-        id,
-        nickname: input.nickname,
-        isPrimary: input.isPrimary,
-      });
-      const [apis, meta] = await Promise.all([
-        listApiVehicles(),
-        readVehicleUiMeta(),
-      ]);
-      setVehicles(mapApiVehiclesToUi(apis, meta));
-      setUseApi(true);
+      setVehicles(mapApiVehiclesToUi(await listApiVehicles()));
       return;
     }
     setVehicles(await updateVehicle(id, input));
@@ -129,32 +98,20 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   const remove = useCallback(async (id: string) => {
     if (await hasAccessToken()) {
       await deleteApiVehicle(id);
-      await removeVehicleUiMeta(id);
-      const [apis, meta] = await Promise.all([
-        listApiVehicles(),
-        readVehicleUiMeta(),
-      ]);
-      setVehicles(mapApiVehiclesToUi(apis, meta));
-      setUseApi(true);
+      setVehicles(mapApiVehiclesToUi(await listApiVehicles()));
       return;
     }
     setVehicles(await deleteVehicle(id));
   }, []);
 
   const setPrimary = useCallback(async (id: string) => {
-    if (useApi || (await hasAccessToken())) {
-      const meta = await readVehicleUiMeta();
-      await writeVehicleUiMeta({ ...meta, primaryId: id });
-      setVehicles((current) =>
-        current.map((vehicle) => ({
-          ...vehicle,
-          isPrimary: vehicle.id === id,
-        })),
-      );
+    if (await hasAccessToken()) {
+      await updateApiVehicle(id, { is_primary: true });
+      setVehicles(mapApiVehiclesToUi(await listApiVehicles()));
       return;
     }
     setVehicles(await setPrimaryVehicle(id));
-  }, [useApi]);
+  }, []);
 
   const getById = useCallback(
     (id: string) => vehicles.find((vehicle) => vehicle.id === id),

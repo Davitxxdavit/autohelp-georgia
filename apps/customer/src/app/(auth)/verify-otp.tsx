@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 /**
- * Product OTP UI is kept for later SMS auth.
- * This build signs in with phone + password on the login screen (JWT foundation).
+ * Unused future SMS OTP screen. Not part of login/register navigation.
+ * Current auth is phone + password JWT. This route only redirects to login.
  */
 export default function VerifyOtpScreen() {
   const router = useRouter();

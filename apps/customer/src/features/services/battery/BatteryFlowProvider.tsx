@@ -15,6 +15,7 @@ import type {
   MockLocation,
 } from './types';
 import type { ApiServiceRequest } from '@/lib/api/types';
+import { locationSnapshotFromRequest } from '@/features/services/flow/requestFlow';
 
 export type BatteryRequestCreated = {
   id: string;
@@ -156,6 +157,20 @@ export function BatteryFlowProvider({ children }: { children: ReactNode }) {
       {children}
     </BatteryFlowContext.Provider>
   );
+}
+
+export function hydrateBatteryDraftFromRequest(request: ApiServiceRequest): void {
+  persistDraft({
+    ...createEmptyDraft(),
+    vehicleId: request.vehicle?.id ?? null,
+    serviceRequestId: request.id,
+    liveRequest: request,
+    requestedAt: request.requested_at ?? request.created_at,
+    completedAt: request.completed_at,
+    backendEstimatedPriceAmount: request.estimated_price_amount,
+    backendEstimatedPriceCurrency: request.estimated_price_currency,
+    location: locationSnapshotFromRequest(request),
+  });
 }
 
 export function useBatteryFlow(): BatteryFlowContextValue {

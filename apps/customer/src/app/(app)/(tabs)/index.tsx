@@ -3,15 +3,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
 import { ActiveOrderEmpty } from '@/components/home/ActiveOrderEmpty';
+import { ActiveRequestCard } from '@/components/home/ActiveRequestCard';
 import { EmergencyHero } from '@/components/home/EmergencyHero';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { InspectionPromo } from '@/components/home/InspectionPromo';
 import { ServicesSection } from '@/components/home/ServicesSection';
+import { useActiveRequest } from '@/features/requests/ActiveRequestProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { activeRequest } = useActiveRequest();
 
   return (
     <ScrollView
@@ -45,7 +48,11 @@ export default function HomeScreen() {
         }}
       />
 
-      <ActiveOrderEmpty />
+      {activeRequest ? (
+        <ActiveRequestCard request={activeRequest} />
+      ) : (
+        <ActiveOrderEmpty />
+      )}
     </ScrollView>
   );
 }

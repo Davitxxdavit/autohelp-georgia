@@ -6,6 +6,7 @@ from apps.accounts.models import Role
 from apps.common.permissions import IsCustomer
 from apps.common.schema import FORBIDDEN, NOT_FOUND, UNAUTHORIZED, VALIDATION_ERROR
 from apps.vehicles.models import Vehicle
+from apps.vehicles.primary import promote_primary_after_delete
 from apps.vehicles.serializers import VehicleSerializer
 
 
@@ -25,7 +26,9 @@ from apps.vehicles.serializers import VehicleSerializer
         summary="Create a vehicle",
         description=(
             "VIN is optional. When provided it must be 17 characters, "
-            "letters/numbers excluding I, O, Q. Stored uppercase. Unique when present."
+            "letters/numbers excluding I, O, Q. Stored uppercase. Unique when present.\n\n"
+            "`nickname` is optional. The first vehicle becomes primary. "
+            "Setting `is_primary=true` unsets the previous primary."
         ),
         responses={
             201: VehicleSerializer,
@@ -81,4 +84,12 @@ class VehicleViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(customer=self.request.user.customer_profile)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        customer = instance.customer
+        was_primary = instance.is_primary
+        instance.delete()
+        promote_primary_after_delete(
+            customer=customer, deleted_was_primary=was_primary
+        )

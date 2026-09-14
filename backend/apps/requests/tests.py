@@ -217,7 +217,28 @@ class MechanicOfferApiTests(APITestCase):
         offer = MechanicRequestOffer.objects.get(request=first, mechanic=self.mechanic)
         self.auth(self.mechanic_user)
         self.client.post(f"/api/v1/mechanic/offers/{offer.id}/accept/")
-        second = self.create_battery_request()
+        other_vehicle = Vehicle.objects.create(
+            customer=self.other_customer,
+            make="Audi",
+            model="A4",
+            year=2016,
+            fuel=FuelType.PETROL,
+        )
+        self.auth(self.other_customer_user)
+        second_response = self.client.post(
+            "/api/v1/requests/",
+            {
+                "vehicle": str(other_vehicle.id),
+                "service": str(self.battery.id),
+                "problem": str(self.dead.id),
+                "customer_latitude": "41.616800",
+                "customer_longitude": "41.636700",
+                "customer_address": "Batumi, Georgia",
+            },
+            format="json",
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+        second = ServiceRequest.objects.get(id=second_response.data["id"])
         self.assertFalse(
             MechanicRequestOffer.objects.filter(
                 request=second, mechanic=self.mechanic

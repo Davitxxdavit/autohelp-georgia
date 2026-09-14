@@ -26,17 +26,11 @@ export type CustomerLocation = {
   city: string;
   country: string;
   point: MockGeoPoint;
-  source: 'device';
+  source: 'device' | 'request';
 };
 
 /** @deprecated Use CustomerLocation. Kept so existing imports compile. */
 export type MockLocation = CustomerLocation;
-
-export type MockMechanic = MechanicIdentity & {
-  distanceKm: number;
-  etaMinutes: number;
-  source: 'mock';
-};
 
 export type ServiceRating = {
   overall: number;

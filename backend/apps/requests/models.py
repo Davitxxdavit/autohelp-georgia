@@ -23,6 +23,25 @@ class RequestStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelled"
 
 
+ACTIVE_CUSTOMER_REQUEST_STATUSES = (
+    RequestStatus.REQUESTED,
+    RequestStatus.SEARCHING,
+    RequestStatus.ASSIGNED,
+    RequestStatus.ACCEPTED,
+    RequestStatus.ON_THE_WAY,
+    RequestStatus.ARRIVED,
+    RequestStatus.IN_PROGRESS,
+)
+
+ACTIVE_MECHANIC_JOB_STATUSES = (
+    RequestStatus.ASSIGNED,
+    RequestStatus.ACCEPTED,
+    RequestStatus.ON_THE_WAY,
+    RequestStatus.ARRIVED,
+    RequestStatus.IN_PROGRESS,
+)
+
+
 class CancelledBy(models.TextChoices):
     CUSTOMER = "CUSTOMER", "Customer"
     MECHANIC = "MECHANIC", "Mechanic"
@@ -128,6 +147,21 @@ class ServiceRequest(TimeStampedModel):
             models.Index(fields=["status"]),
             models.Index(fields=["customer", "-created_at"]),
             models.Index(fields=["assigned_mechanic", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer"],
+                condition=models.Q(status__in=ACTIVE_CUSTOMER_REQUEST_STATUSES),
+                name="one_active_request_per_customer",
+            ),
+            models.UniqueConstraint(
+                fields=["assigned_mechanic"],
+                condition=models.Q(
+                    assigned_mechanic__isnull=False,
+                    status__in=ACTIVE_MECHANIC_JOB_STATUSES,
+                ),
+                name="one_active_job_per_mechanic",
+            ),
         ]
 
     def __str__(self) -> str:

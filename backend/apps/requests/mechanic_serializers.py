@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.requests.models import MechanicRequestOffer
 from apps.requests.quotes import public_quote_fields
+from apps.services.models import Service
 
 
 class MechanicOfferVehicleSerializer(serializers.Serializer):
@@ -78,7 +79,40 @@ class MechanicMeSerializer(serializers.Serializer):
 
 
 class MechanicMeUpdateSerializer(serializers.Serializer):
-    online = serializers.BooleanField()
+    online = serializers.BooleanField(required=False)
+    first_name = serializers.CharField(required=False, max_length=80)
+    services = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        help_text="Active catalog service IDs. At least one required when sent.",
+    )
+
+    def validate_first_name(self, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("This field may not be blank.")
+        return name
+
+    def validate_services(self, value):
+        unique_ids = list(dict.fromkeys(value))
+        if not unique_ids:
+            raise serializers.ValidationError("Select at least one service.")
+        found = list(Service.objects.filter(id__in=unique_ids))
+        found_by_id = {item.id: item for item in found}
+        missing = [item_id for item_id in unique_ids if item_id not in found_by_id]
+        if missing:
+            raise serializers.ValidationError("One or more services are invalid.")
+        inactive = [item for item in found if not item.active]
+        if inactive:
+            raise serializers.ValidationError("One or more services are inactive.")
+        return found
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError(
+                "Provide at least one of: online, first_name, services."
+            )
+        return attrs
 
 
 class MechanicOfferSerializer(serializers.Serializer):
@@ -125,6 +159,24 @@ class MechanicEarningsResponseSerializer(serializers.Serializer):
     next = serializers.CharField(allow_null=True)
     previous = serializers.CharField(allow_null=True)
     results = MechanicEarningRowSerializer(many=True)
+
+
+class MechanicJobHistoryItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    request_id = serializers.UUIDField()
+    service_code = serializers.CharField()
+    service_name = serializers.CharField()
+    customer_display_name = serializers.CharField()
+    status = serializers.CharField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+    customer_address = serializers.CharField()
+    final_price_amount = serializers.CharField(allow_null=True)
+    estimated_price_currency = serializers.CharField()
+    gross_amount = serializers.CharField(allow_null=True)
+    commission_amount = serializers.CharField(allow_null=True)
+    net_amount = serializers.CharField(allow_null=True)
+    currency = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
 
 
 def serialize_mechanic_offer(

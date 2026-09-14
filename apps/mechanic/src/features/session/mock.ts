@@ -18,16 +18,3 @@ export type MockMechanicProfile = {
   supportedServices: ServiceId[];
   services: MechanicServiceSummary[];
 };
-
-export const MOCK_MECHANIC: MockMechanicProfile = {
-  id: 'mech_giorgi',
-  name: 'გიორგი',
-  firstName: 'გიორგი',
-  phone: '',
-  rating: 4.9,
-  verified: true,
-  online: true,
-  approvalStatus: 'APPROVED',
-  supportedServices: ['BATTERY', 'DIAGNOSTICS', 'AUTO_KEY'],
-  services: [],
-};

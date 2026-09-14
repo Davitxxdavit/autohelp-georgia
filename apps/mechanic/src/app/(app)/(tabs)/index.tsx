@@ -132,11 +132,11 @@ export default function MechanicHomeScreen() {
       ) : (
         <View style={styles.empty}>
           <AppText variant="h3">
-            {activeJob ? JOB_STATUS_LABELS[activeJob.status] : 'No active job'}
+            {activeJob ? 'Active job' : 'No active job'}
           </AppText>
           <AppText variant="body" color="textSecondary">
             {activeJob
-              ? `${SERVICE_LABELS[activeJob.serviceId]} · ${activeJob.customerLabel}`
+              ? `${SERVICE_LABELS[activeJob.serviceId]} · ${activeJob.customerLabel} · ${JOB_STATUS_LABELS[activeJob.status]}`
               : profile.online
                 ? 'Nearby requests will show here when a customer needs help.'
                 : 'Go online to receive Battery, Diagnostics, and Auto Key requests in Batumi.'}

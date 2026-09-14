@@ -6,6 +6,7 @@ from apps.requests.mechanic_views import (
     MechanicArriveView,
     MechanicCompleteJobView,
     MechanicEarningsView,
+    MechanicJobHistoryView,
     MechanicLocationView,
     MechanicMeView,
     MechanicOfferViewSet,
@@ -22,6 +23,11 @@ urlpatterns = [
     path("location/", MechanicLocationView.as_view(), name="mechanic-location"),
     path("earnings/", MechanicEarningsView.as_view(), name="mechanic-earnings"),
     path("jobs/active/", MechanicActiveJobView.as_view(), name="mechanic-active-job"),
+    path(
+        "jobs/history/",
+        MechanicJobHistoryView.as_view(),
+        name="mechanic-job-history",
+    ),
     path(
         "jobs/<uuid:request_id>/start-driving/",
         MechanicStartDrivingView.as_view(),

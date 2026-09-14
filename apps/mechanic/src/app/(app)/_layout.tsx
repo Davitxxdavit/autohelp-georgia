@@ -36,6 +36,7 @@ export default function AppLayout() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="job" />
+      <Stack.Screen name="history" />
     </Stack>
   );
 }

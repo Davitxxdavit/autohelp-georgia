@@ -27,6 +27,7 @@ import {
   requestVehicleLine,
 } from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
+import { customerCanCancel } from '@/lib/api/status';
 import { useDiagnosticsFlow } from '@/features/services/diagnostics/DiagnosticsFlowProvider';
 import {
   formatEstimatedPrice,
@@ -57,7 +58,8 @@ export default function DiagnosticsFoundScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'found',
     routes: DIAGNOSTICS_FLOW_ROUTES,
@@ -122,6 +124,7 @@ export default function DiagnosticsFoundScreen() {
                 onPress={() => router.replace('/diagnostics/tracking' as Href)}
               />
               <CallMechanicButton phone={specialist?.phone} />
+              {customerCanCancel(live?.status ?? '') ? (
               <AnimatedPressable
                 accessibilityLabel="Cancel request"
                 onPress={onCancel}
@@ -131,6 +134,7 @@ export default function DiagnosticsFoundScreen() {
                   {cancelBusy ? 'Cancelling…' : 'Cancel request'}
                 </AppText>
               </AnimatedPressable>
+              ) : null}
             </View>
           </Reveal>
         }
@@ -168,7 +172,7 @@ export default function DiagnosticsFoundScreen() {
             <AppText variant="h2" style={styles.center}>
               Specialist found
             </AppText>
-            <RequestPollHint pollError={pollError} />
+            <RequestPollHint pollError={pollError} onRetry={retry} />
           </View>
         </Reveal>
 

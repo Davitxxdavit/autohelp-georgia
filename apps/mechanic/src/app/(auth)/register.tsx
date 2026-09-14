@@ -18,6 +18,7 @@ import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import { registerMechanic } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/errors';
 import { listActiveServices } from '@/lib/api/services';
+import { useServerWakeCopy } from '@/lib/useServerWakeCopy';
 import { setTokenPair } from '@/lib/api/tokens';
 import type { ApiService } from '@/lib/api/types';
 import { colors } from '@/theme/colors';
@@ -44,6 +45,7 @@ export default function MechanicRegisterScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const wakeCopy = useServerWakeCopy(busy);
 
   useEffect(() => {
     let mounted = true;
@@ -224,6 +226,11 @@ export default function MechanicRegisterScreen() {
           {error ? (
             <AppText variant="caption" color="danger">
               {error}
+            </AppText>
+          ) : null}
+          {wakeCopy ? (
+            <AppText variant="caption" color="textMuted">
+              {wakeCopy}
             </AppText>
           ) : null}
         </View>

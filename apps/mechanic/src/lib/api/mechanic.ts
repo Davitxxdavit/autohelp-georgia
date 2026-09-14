@@ -1,6 +1,7 @@
 import { apiGetList, apiRequest } from './client';
 import type {
   ApiMechanicEarningsResponse,
+  ApiMechanicJobHistoryItem,
   ApiMechanicMe,
   ApiMechanicOffer,
   ApiTripRoute,
@@ -17,7 +18,9 @@ export async function getMechanicMe(): Promise<ApiMechanicMe> {
 }
 
 export async function patchMechanicMe(body: {
-  online: boolean;
+  online?: boolean;
+  first_name?: string;
+  services?: string[];
 }): Promise<ApiMechanicMe> {
   return apiRequest<ApiMechanicMe>('/mechanic/me/', {
     method: 'PATCH',
@@ -70,6 +73,10 @@ export async function proposeJobPrice(
 
 export async function listMechanicEarnings(): Promise<ApiMechanicEarningsResponse> {
   return apiRequest<ApiMechanicEarningsResponse>('/mechanic/earnings/');
+}
+
+export async function listMechanicJobHistory(): Promise<ApiMechanicJobHistoryItem[]> {
+  return apiGetList<ApiMechanicJobHistoryItem>('/mechanic/jobs/history/');
 }
 
 export async function reportMechanicLocation(body: {

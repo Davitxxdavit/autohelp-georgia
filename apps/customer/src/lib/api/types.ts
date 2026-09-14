@@ -56,6 +56,8 @@ export type ApiVehicle = {
   fuel: string;
   license_plate: string;
   vin: string | null;
+  nickname?: string;
+  is_primary?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +70,8 @@ export type ApiVehicleWrite = {
   fuel: string;
   license_plate?: string;
   vin?: string | null;
+  nickname?: string;
+  is_primary?: boolean;
 };
 
 export type ApiRequestStatus =
@@ -129,6 +133,11 @@ export type ApiServiceRequest = {
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancellation_reason: string;
+  rating?: {
+    stars: number;
+    feedback: string;
+    created_at: string;
+  } | null;
   created_at: string;
   updated_at: string;
 };

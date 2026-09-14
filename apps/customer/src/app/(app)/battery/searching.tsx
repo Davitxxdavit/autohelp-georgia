@@ -96,7 +96,7 @@ export default function BatterySearchingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { notFound, pollError, request } = useRequestFlowSync({
+  const { notFound, pollError, request, retry } = useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'searching',
     routes: BATTERY_FLOW_ROUTES,
@@ -173,7 +173,7 @@ export default function BatterySearchingScreen() {
             <AppText variant="caption" color="textMuted" style={styles.center}>
               Usually takes less than a minute
             </AppText>
-            <RequestPollHint pollError={pollError} />
+            <RequestPollHint pollError={pollError} onRetry={retry} />
             <AnimatedPressable
               accessibilityLabel="Cancel request"
               disabled={cancelBusy}

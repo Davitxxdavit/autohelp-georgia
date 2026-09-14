@@ -27,6 +27,7 @@ import {
   requestVehicleLine,
 } from '@/features/services/flow/requestFlow';
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
+import { customerCanCancel } from '@/lib/api/status';
 import { useKeysFlow } from '@/features/services/keys/KeysFlowProvider';
 import {
   getKeysProblem,
@@ -55,7 +56,8 @@ export default function KeysFoundScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'found',
     routes: KEYS_FLOW_ROUTES,
@@ -118,6 +120,7 @@ export default function KeysFoundScreen() {
                 onPress={() => router.replace('/keys/tracking' as Href)}
               />
               <CallMechanicButton phone={specialist?.phone} />
+              {customerCanCancel(live?.status ?? '') ? (
               <AnimatedPressable
                 accessibilityLabel="Cancel request"
                 onPress={onCancel}
@@ -127,6 +130,7 @@ export default function KeysFoundScreen() {
                   {cancelBusy ? 'Cancelling…' : 'Cancel request'}
                 </AppText>
               </AnimatedPressable>
+              ) : null}
             </View>
           </Reveal>
         }
@@ -164,7 +168,7 @@ export default function KeysFoundScreen() {
             <AppText variant="h2" style={styles.center}>
               Locksmith found
             </AppText>
-            <RequestPollHint pollError={pollError} />
+            <RequestPollHint pollError={pollError} onRetry={retry} />
           </View>
         </Reveal>
 

@@ -1,4 +1,5 @@
 import { apiGetList, apiRequest } from './client';
+import { isApiError } from './errors';
 import { resolveCatalogIds } from './mapping';
 import type {
   ApiServiceRequest,
@@ -14,6 +15,11 @@ export async function listServiceRequests(): Promise<ApiServiceRequest[]> {
 
 export async function getServiceRequest(id: string): Promise<ApiServiceRequest> {
   return apiRequest<ApiServiceRequest>(`/requests/${id}/`);
+}
+
+export async function getActiveServiceRequest(): Promise<ApiServiceRequest | null> {
+  const data = await apiRequest<ApiServiceRequest | undefined>('/requests/active/');
+  return data ?? null;
 }
 
 export async function getRequestRoute(id: string): Promise<ApiTripRoute> {
@@ -54,17 +60,25 @@ function toApiCoordinate(value: number | string): number {
 export async function createServiceRequest(
   payload: CreateServiceRequestBody,
 ): Promise<ApiServiceRequest> {
-  return apiRequest<ApiServiceRequest>('/requests/', {
-    method: 'POST',
-    body: {
-      ...payload,
-      customer_latitude: toApiCoordinate(payload.customer_latitude),
-      customer_longitude: toApiCoordinate(payload.customer_longitude),
-    },
-  });
+  try {
+    return await apiRequest<ApiServiceRequest>('/requests/', {
+      method: 'POST',
+      body: {
+        ...payload,
+        customer_latitude: toApiCoordinate(payload.customer_latitude),
+        customer_longitude: toApiCoordinate(payload.customer_longitude),
+      },
+    });
+  } catch (error) {
+    if (isApiError(error) && error.status === 409) {
+      const active = await getActiveServiceRequest();
+      if (active) return active;
+    }
+    throw error;
+  }
 }
 
-/** First page only. Orders does not need infinite scroll in this milestone. */
+/** First page only. Prefer listServiceRequests() when the full history is needed. */
 export async function listServiceRequestsFirstPage(): Promise<
   ApiServiceRequest[]
 > {

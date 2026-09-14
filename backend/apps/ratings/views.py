@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.common.permissions import IsCustomer
 from apps.common.schema import FORBIDDEN, UNAUTHORIZED, VALIDATION_ERROR
+from apps.common.throttles import RatingThrottle
 from apps.ratings.models import Rating
 from apps.ratings.serializers import RatingSerializer
 
@@ -12,6 +13,7 @@ class RatingCreateView(CreateAPIView):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
     permission_classes = [IsAuthenticated, IsCustomer]
+    throttle_classes = [RatingThrottle]
 
     @extend_schema(
         tags=["Ratings"],

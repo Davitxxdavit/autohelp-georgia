@@ -40,7 +40,8 @@ export default function KeysTrackingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'tracking',
     routes: KEYS_FLOW_ROUTES,
@@ -91,7 +92,7 @@ export default function KeysTrackingScreen() {
             customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
             kind="keys"
           />
-          <RequestPollHint pollError={pollError} />
+          <RequestPollHint pollError={pollError} onRetry={retry} />
         </Reveal>
 
         <Reveal delayMs={timing.slow}>

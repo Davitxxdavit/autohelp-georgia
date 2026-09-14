@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 import json
 import logging
+import socket
 import urllib.error
 import urllib.request
 
@@ -14,7 +15,8 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 ORS_DIRECTIONS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
-ROUTING_TIMEOUT_SECONDS = 8
+ROUTING_TIMEOUT_SECONDS = 15
+USER_AGENT = "AutoHelp/1.0"
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,25 @@ class RouteResult:
 
 def _decimal_pair(latitude: Decimal, longitude: Decimal) -> tuple[float, float]:
     return float(latitude), float(longitude)
+
+
+def _safe_provider_message(raw: str, *, limit: int = 240) -> str:
+    text = " ".join((raw or "").split())
+    return text[:limit]
+
+
+def _log_provider_failure(
+    *,
+    provider: str,
+    status_code: int | None,
+    message: str,
+) -> None:
+    logger.warning(
+        "Routing provider %s failed: status=%s message=%s",
+        provider,
+        status_code if status_code is not None else "n/a",
+        _safe_provider_message(message),
+    )
 
 
 def fetch_openroute(
@@ -50,24 +71,59 @@ def fetch_openroute(
         method="POST",
         headers={
             "Authorization": api_key,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": (
+                "application/json, application/geo+json, "
+                "application/gpx+xml, img/png; charset=utf-8"
+            ),
+            "User-Agent": USER_AGENT,
         },
     )
     try:
         with urllib.request.urlopen(request, timeout=ROUTING_TIMEOUT_SECONDS) as response:
             body = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-        logger.warning("Routing provider request failed: %s", exc.__class__.__name__)
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+        _log_provider_failure(
+            provider="openrouteservice",
+            status_code=exc.code,
+            message=raw or exc.reason,
+        )
         return None
-    return parse_openroute_geojson(body)
+    except TimeoutError:
+        _log_provider_failure(
+            provider="openrouteservice",
+            status_code=None,
+            message="timeout",
+        )
+        return None
+    except (urllib.error.URLError, socket.timeout, json.JSONDecodeError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        _log_provider_failure(
+            provider="openrouteservice",
+            status_code=None,
+            message=f"{exc.__class__.__name__}: {reason}",
+        )
+        return None
+    parsed = parse_openroute_geojson(body)
+    if parsed is None:
+        _log_provider_failure(
+            provider="openrouteservice",
+            status_code=200,
+            message="malformed provider response",
+        )
+    return parsed
 
 
 def parse_openroute_geojson(body: dict) -> RouteResult | None:
+    if not isinstance(body, dict):
+        return None
     features = body.get("features") or []
     if not features:
         return None
     feature = features[0]
+    if not isinstance(feature, dict):
+        return None
     properties = feature.get("properties") or {}
     summary = properties.get("summary") or {}
     try:
@@ -92,6 +148,8 @@ def parse_openroute_geojson(body: dict) -> RouteResult | None:
         except (TypeError, ValueError):
             continue
     if distance < 0 or duration < 0:
+        return None
+    if not coordinates:
         return None
     return RouteResult(
         distance_meters=distance,

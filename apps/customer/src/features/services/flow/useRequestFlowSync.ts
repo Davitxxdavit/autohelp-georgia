@@ -28,6 +28,7 @@ export function useRequestFlowSync(args: {
   request: ApiServiceRequest | null;
   notFound: boolean;
   pollError: boolean;
+  retry: () => void;
   replaceRequest: (next: ApiServiceRequest) => void;
 } {
   const router = useRouter();
@@ -35,6 +36,7 @@ export function useRequestFlowSync(args: {
   const [request, setRequest] = useState<ApiServiceRequest | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [pollError, setPollError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const inFlightRef = useRef(false);
   const onRequestRef = useRef(args.onRequest);
   onRequestRef.current = args.onRequest;
@@ -106,8 +108,13 @@ export function useRequestFlowSync(args: {
         cancelled = true;
         if (timer) clearTimeout(timer);
       };
-    }, [requestId]),
+    }, [requestId, retryNonce]),
   );
+
+  const retry = useCallback(() => {
+    setPollError(false);
+    setRetryNonce((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     if (!request) return;
@@ -122,5 +129,5 @@ export function useRequestFlowSync(args: {
     router.replace(routes[target]);
   }, [currentPhase, request, router, routes]);
 
-  return { request, notFound, pollError, replaceRequest };
+  return { request, notFound, pollError, retry, replaceRequest };
 }

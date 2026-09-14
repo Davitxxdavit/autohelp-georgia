@@ -15,6 +15,7 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { getCopy } from '@/content/copy';
 import { isApiError } from '@/lib/api/errors';
+import { useServerWakeCopy } from '@/lib/useServerWakeCopy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -31,6 +32,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const wakeCopy = useServerWakeCopy(busy);
 
   useFocusEffect(
     useCallback(() => {
@@ -130,6 +132,11 @@ export default function LoginScreen() {
         {error ? (
           <AppText variant="caption" color="danger">
             {error}
+          </AppText>
+        ) : null}
+        {wakeCopy ? (
+          <AppText variant="caption" color="textMuted">
+            {wakeCopy}
           </AppText>
         ) : null}
       </View>

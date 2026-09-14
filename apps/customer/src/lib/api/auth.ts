@@ -38,3 +38,12 @@ export async function refreshTokenPair(refresh: string): Promise<{ access: strin
 export async function getCurrentUser(): Promise<CurrentUser> {
   return apiRequest<CurrentUser>('/auth/me/');
 }
+
+export async function updateCurrentUser(payload: {
+  first_name: string;
+}): Promise<CurrentUser> {
+  return apiRequest<CurrentUser>('/auth/me/', {
+    method: 'PATCH',
+    body: payload,
+  });
+}

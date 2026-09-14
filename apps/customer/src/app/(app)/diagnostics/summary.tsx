@@ -14,6 +14,7 @@ import {
   getDiagnosticsOption,
   getDiagnosticsProblem,
 } from '@/features/services/diagnostics/mock';
+import { resumeCustomerRequest } from '@/features/requests/ActiveRequestProvider';
 import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
@@ -78,7 +79,8 @@ export default function DiagnosticsSummaryScreen() {
         estimatedPriceAmount: created.estimated_price_amount,
         estimatedPriceCurrency: created.estimated_price_currency,
       });
-      router.push('/diagnostics/searching' as Href);
+      const href = resumeCustomerRequest(created);
+      router.replace(href ?? ('/diagnostics/searching' as Href));
     } catch (error) {
       if (__DEV__) {
         console.warn('[AutoHelp] Diagnostics request create failed', error);

@@ -31,6 +31,8 @@ Optional:
 
 Never commit these values. The script never prints passwords or JWTs.
 
+Routing must PASS on staging. Do not set `AUTOHELP_REQUIRE_ROUTING=false` to hide a provider failure.
+
 ### Windows PowerShell (session only)
 
 ```powershell
@@ -74,28 +76,13 @@ python scripts/staging_smoke_test.py --all
 .\scripts\run_staging_smoke.ps1 -All
 ```
 
+`--all` also checks: no leftover active customer request, duplicate create 409, vehicle nickname/primary, completed request in customer and mechanic history, routing PASS, then restores mechanic services and sets the mechanic offline.
+
 ### Verbose (sanitized HTTP)
 
 ```powershell
 python scripts/staging_smoke_test.py --all --verbose
 ```
-
-### Local Docker API
-
-```powershell
-$env:AUTOHELP_API_URL="http://127.0.0.1:8000/api/v1"
-python scripts/staging_smoke_test.py --all
-```
-
-Localhost is allowed without `--allow-non-staging`. Use `seed_dev` phones/passwords only on a DEBUG machine.
-
-### Safety
-
-The script runs against `autohelp-api.onrender.com` or localhost by default. Any other host requires `--allow-non-staging` or `AUTOHELP_ALLOW_SMOKE_TESTS=true`.
-
-If the mechanic already has an active job, the smoke test stops and tells you to finish it first.
-
-Set `AUTOHELP_REQUIRE_ROUTING=false` only when you intentionally have no routing key.
 
 ## Django tests
 
@@ -105,20 +92,19 @@ From `backend/` with Docker:
 docker compose exec web python manage.py test
 ```
 
-Includes a high-level Diagnostics lifecycle test (`apps.requests.test_lifecycle`) with the routing provider mocked. Existing unit tests are unchanged.
+`manage.py test` uses DummyCache plus very high throttle rates so the suite is not 429’d. `apps.common.test_throttling` opts into LocMemCache and `auth: 2/min` to prove throttling. Location updates are not throttled.
 
-## Frontend automated tests
+Migrations `service_requests.0005` and `vehicles.0002` must run on Render before the next staging smoke. `0005` cancels extra concurrent active requests/jobs (`cancelled_by=SYSTEM`) before adding uniqueness.
 
-Jest / React Native Testing Library are **not** installed. Do not add a large RN test stack just to re-check API flows; the smoke script already covers those.
+## Frontend typecheck
 
-Smallest useful next step, if UI regressions become frequent:
+```powershell
+cd apps/customer; npx tsc --noEmit
+cd apps/mechanic; npx tsc --noEmit
+```
 
-1. Add Jest + `jest-expo` only in the app that needs it.
-2. Test **pure functions** first (`features/maps/format.ts`, `features/maps/geo.ts`, `features/earnings/format.ts`, phone helpers).
-3. Skip screenshot / device farms until those helpers have coverage.
+Jest / React Native Testing Library is not part of this MVP. Pure formatter coverage is backend + TypeScript.
 
-Until then, `npx tsc --noEmit` in `apps/customer` and `apps/mechanic` is the frontend gate.
+## Rate limiting note
 
-## What still needs a phone
-
-See `docs/MANUAL_DEVICE_TESTS.md`.
+DRF scoped throttles use Django’s default cache (LocMemCache unless `CACHES` is set). This is single-instance MVP protection, not distributed Redis rate limiting.

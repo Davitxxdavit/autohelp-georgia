@@ -1,4 +1,5 @@
-from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
@@ -13,6 +14,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import MechanicProfile
 from apps.common.permissions import IsApprovedMechanic, IsMechanic
 from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED
+from apps.common.throttles import PriceActionThrottle
 from apps.requests.earnings import (
     DEFAULT_CURRENCY,
     quantize_money,
@@ -23,6 +25,7 @@ from apps.requests.exceptions import Conflict
 from apps.requests.matching import ACTIVE_JOB_STATUSES, issue_offers_for_unmatched_requests
 from apps.requests.mechanic_serializers import (
     MechanicEarningsResponseSerializer,
+    MechanicJobHistoryItemSerializer,
     MechanicMeSerializer,
     MechanicMeUpdateSerializer,
     MechanicOfferSerializer,
@@ -107,6 +110,15 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def list(self, request, *args, **kwargs):
         issue_offers_for_unmatched_requests(changed_by=request.user)
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is not None and ServiceRequest.objects.filter(
+            assigned_mechanic=mechanic,
+            status__in=ACTIVE_JOB_STATUSES,
+        ).exists():
+            page = self.paginate_queryset(self.get_queryset().none())
+            if page is not None:
+                return self.get_paginated_response([])
+            return Response([])
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         items = page if page is not None else queryset
@@ -122,7 +134,8 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             "Claims the ServiceRequest for this mechanic. "
             "Transitions SEARCHING → ASSIGNED → ACCEPTED. "
             "Other pending offers on the same request expire. "
-            "409 if the request is already claimed."
+            "409 if the request is already claimed or the mechanic already "
+            "has an active job."
         ),
         request=None,
         responses={
@@ -139,6 +152,12 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if mechanic is None:
             raise NotFound()
         with transaction.atomic():
+            mechanic = MechanicProfile.objects.select_for_update().get(pk=mechanic.pk)
+            if ServiceRequest.objects.filter(
+                assigned_mechanic=mechanic,
+                status__in=ACTIVE_JOB_STATUSES,
+            ).exists():
+                raise Conflict("You already have an active job.")
             try:
                 offer = (
                     MechanicRequestOffer.objects.select_for_update()
@@ -173,16 +192,19 @@ class MechanicOfferViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             offer.save(update_fields=["status", "responded_at", "updated_at"])
 
             service_request.assigned_mechanic = mechanic
-            service_request.transition_status(
-                RequestStatus.ASSIGNED,
-                changed_by=request.user,
-                note="Offer claimed",
-            )
-            service_request.transition_status(
-                RequestStatus.ACCEPTED,
-                changed_by=request.user,
-                note="Mechanic accepted",
-            )
+            try:
+                service_request.transition_status(
+                    RequestStatus.ASSIGNED,
+                    changed_by=request.user,
+                    note="Offer claimed",
+                )
+                service_request.transition_status(
+                    RequestStatus.ACCEPTED,
+                    changed_by=request.user,
+                    note="Mechanic accepted",
+                )
+            except IntegrityError as exc:
+                raise Conflict("You already have an active job.") from exc
 
             MechanicRequestOffer.objects.filter(
                 request=service_request,
@@ -304,14 +326,18 @@ class MechanicMeView(APIView):
         tags=["Mechanic"],
         summary="Update mechanic availability",
         description=(
-            "Writable field: `online`.\n\n"
+            "Writable fields: `online`, `first_name`, `services`.\n\n"
             "Offline: mechanic is excluded from new matching. Existing PENDING "
             "offers for this mechanic are expired so they are no longer "
             "actionable and cannot block later matching. An active accepted "
             "job is left unchanged.\n\n"
             "Online: mechanic becomes eligible for new offers again if other "
             "eligibility checks pass. SEARCHING offers expired by going offline "
-            "are revived as PENDING."
+            "are revived as PENDING.\n\n"
+            "`services` replaces the mechanic's offered catalog services. "
+            "Only active catalog IDs are accepted. At least one is required. "
+            "Pending offers for services that are no longer selected expire. "
+            "Matching uses the updated set immediately. No admin re-approval."
         ),
         request=MechanicMeUpdateSerializer,
         responses={
@@ -327,9 +353,30 @@ class MechanicMeView(APIView):
             raise NotFound()
         serializer = MechanicMeUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        profile = set_mechanic_online(
-            mechanic, online=serializer.validated_data["online"]
-        )
+        data = serializer.validated_data
+        profile = mechanic
+        if "online" in data:
+            profile = set_mechanic_online(profile, online=data["online"])
+        update_fields = []
+        if "first_name" in data:
+            profile.first_name = data["first_name"]
+            update_fields.append("first_name")
+        if update_fields:
+            update_fields.append("updated_at")
+            profile.save(update_fields=update_fields)
+        if "services" in data:
+            with transaction.atomic():
+                profile = MechanicProfile.objects.select_for_update().get(pk=profile.pk)
+                profile.services.set(data["services"])
+                kept_ids = [service.id for service in data["services"]]
+                now = timezone.now()
+                MechanicRequestOffer.objects.filter(
+                    mechanic=profile,
+                    status=OfferStatus.PENDING,
+                ).exclude(request__service_id__in=kept_ids).update(
+                    status=OfferStatus.EXPIRED,
+                    responded_at=now,
+                )
         return Response(serialize_mechanic_me(_mechanic_with_relations(profile)))
 
 
@@ -427,6 +474,7 @@ class MechanicCompleteJobView(MechanicJobTransitionView):
 
 class MechanicProposePriceView(APIView):
     permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
+    throttle_classes = [PriceActionThrottle]
 
     @extend_schema(
         tags=["Mechanic"],
@@ -563,3 +611,81 @@ class MechanicEarningsView(APIView):
         response = paginator.get_paginated_response(results)
         response.data = {"summary": summary, **response.data}
         return response
+
+
+class MechanicJobHistoryView(APIView):
+    permission_classes = [IsAuthenticated, IsMechanic, IsApprovedMechanic]
+    pagination_class = MechanicEarningsPagination
+
+    @extend_schema(
+        tags=["Mechanic"],
+        summary="List completed jobs for the authenticated mechanic",
+        description=(
+            "Approved mechanic only. Returns this mechanic's COMPLETED jobs "
+            "with earning snapshot when present. Does not include other "
+            "mechanics' jobs."
+        ),
+        responses={
+            200: MechanicJobHistoryItemSerializer,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+        },
+    )
+    def get(self, request):
+        mechanic = _mechanic_or_none(request.user)
+        if mechanic is None:
+            raise NotFound()
+        queryset = (
+            ServiceRequest.objects.filter(
+                assigned_mechanic=mechanic,
+                status=RequestStatus.COMPLETED,
+            )
+            .select_related("service", "customer", "earning")
+            .order_by("-completed_at", "-created_at")
+        )
+        paginator = MechanicEarningsPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        items = page if page is not None else list(queryset)
+        results = [_serialize_job_history_item(item) for item in items]
+        if page is None:
+            return Response(results)
+        return paginator.get_paginated_response(results)
+
+
+def _serialize_job_history_item(service_request: ServiceRequest) -> dict:
+    try:
+        earning = service_request.earning
+    except ObjectDoesNotExist:
+        earning = None
+    customer = service_request.customer
+    payload = {
+        "id": str(service_request.id),
+        "request_id": str(service_request.id),
+        "service_code": service_request.service.code,
+        "service_name": service_request.service.name,
+        "customer_display_name": customer.first_name if customer else "",
+        "status": service_request.status,
+        "completed_at": service_request.completed_at,
+        "customer_address": service_request.customer_address,
+        "final_price_amount": (
+            None
+            if service_request.final_price_amount is None
+            else str(service_request.final_price_amount)
+        ),
+        "estimated_price_currency": service_request.estimated_price_currency,
+        "gross_amount": None,
+        "commission_amount": None,
+        "net_amount": None,
+        "currency": None,
+        "created_at": service_request.created_at,
+    }
+    if earning is not None:
+        payload.update(
+            {
+                "gross_amount": str(earning.gross_amount),
+                "commission_amount": str(earning.commission_amount),
+                "net_amount": str(earning.net_amount),
+                "currency": earning.currency,
+            }
+        )
+    return payload

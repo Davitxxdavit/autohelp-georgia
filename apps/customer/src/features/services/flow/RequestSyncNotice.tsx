@@ -4,12 +4,27 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { spacing } from '@/theme/spacing';
 
-export function RequestPollHint({ pollError }: { pollError: boolean }) {
+export function RequestPollHint({
+  pollError,
+  onRetry,
+}: {
+  pollError: boolean;
+  onRetry?: () => void;
+}) {
   if (!pollError) return null;
   return (
-    <AppText variant="caption" color="textMuted" style={styles.center}>
-      Updating is delayed. Retrying…
-    </AppText>
+    <View style={styles.retry}>
+      <AppText variant="caption" color="textMuted" style={styles.center}>
+        Updating is delayed.
+      </AppText>
+      {onRetry ? (
+        <PrimaryButton label="Retry" onPress={onRetry} />
+      ) : (
+        <AppText variant="caption" color="textMuted" style={styles.center}>
+          Retrying…
+        </AppText>
+      )}
+    </View>
   );
 }
 
@@ -36,5 +51,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
+  },
+  retry: {
+    gap: spacing.sm,
+    alignItems: 'center',
   },
 });

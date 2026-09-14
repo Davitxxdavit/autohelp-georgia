@@ -38,6 +38,7 @@ import {
 import { useRequestFlowSync } from '@/features/services/flow/useRequestFlowSync';
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
+import { customerCanCancel } from '@/lib/api/status';
 import type { ApiServiceRequest } from '@/lib/api/types';
 import { runPreset } from '@/animations/transitions';
 import { timing } from '@/animations/timing';
@@ -83,7 +84,8 @@ export default function BatteryFoundScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'found',
     routes: BATTERY_FLOW_ROUTES,
@@ -148,6 +150,7 @@ export default function BatteryFoundScreen() {
                 onPress={() => router.replace('/battery/tracking')}
               />
               <CallMechanicButton phone={mechanic?.phone} />
+              {customerCanCancel(live?.status ?? '') ? (
               <AnimatedPressable
                 accessibilityLabel="Cancel request"
                 disabled={cancelBusy}
@@ -158,6 +161,7 @@ export default function BatteryFoundScreen() {
                   {cancelBusy ? 'Cancelling…' : 'Cancel request'}
                 </AppText>
               </AnimatedPressable>
+              ) : null}
             </View>
           </Reveal>
         }
@@ -195,7 +199,7 @@ export default function BatteryFoundScreen() {
             <AppText variant="h2" style={styles.center}>
               Mechanic found
             </AppText>
-            <RequestPollHint pollError={pollError} />
+            <RequestPollHint pollError={pollError} onRetry={retry} />
           </View>
         </Reveal>
 

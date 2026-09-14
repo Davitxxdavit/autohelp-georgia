@@ -1,3 +1,6 @@
+/**
+ * Future SMS OTP UI. Not used by current phone+password login/register.
+ */
 import { useRef } from 'react';
 import {
   StyleSheet,
@@ -81,8 +84,6 @@ export function OtpInput({ value, onChange }: OtpInputProps) {
     </View>
   );
 }
-
-export const MOCK_OTP_CODE = '123456';
 
 const styles = StyleSheet.create({
   row: {

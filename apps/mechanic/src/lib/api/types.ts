@@ -88,6 +88,24 @@ export type ApiMechanicEarningsResponse = Paginated<ApiMechanicEarning> & {
   summary: ApiMechanicEarningsSummary;
 };
 
+export type ApiMechanicJobHistoryItem = {
+  id: string;
+  request_id: string;
+  service_code: string;
+  service_name: string;
+  customer_display_name: string;
+  status: string;
+  completed_at: string | null;
+  customer_address: string;
+  final_price_amount: string | null;
+  estimated_price_currency: string;
+  gross_amount: string | null;
+  commission_amount: string | null;
+  net_amount: string | null;
+  currency: string | null;
+  created_at: string;
+};
+
 export type ApiMechanicMeService = {
   id: string;
   code: string;

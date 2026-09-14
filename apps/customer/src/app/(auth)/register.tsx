@@ -16,6 +16,7 @@ import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { getCopy } from '@/content/copy';
 import { isApiError } from '@/lib/api/errors';
+import { useServerWakeCopy } from '@/lib/useServerWakeCopy';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -40,6 +41,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const wakeCopy = useServerWakeCopy(busy);
 
   const onSubmit = async () => {
     if (busy) return;
@@ -160,6 +162,11 @@ export default function RegisterScreen() {
           {error ? (
             <AppText variant="caption" color="danger">
               {error}
+            </AppText>
+          ) : null}
+          {wakeCopy ? (
+            <AppText variant="caption" color="textMuted">
+              {wakeCopy}
             </AppText>
           ) : null}
         </View>

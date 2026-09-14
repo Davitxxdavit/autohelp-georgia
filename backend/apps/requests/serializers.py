@@ -1,11 +1,16 @@
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.accounts.models import Role
+from apps.accounts.models import CustomerProfile, Role
+from apps.requests.exceptions import Conflict
 from apps.requests.location import public_mechanic_location, viewer_may_see_mechanic_location
+from apps.requests.matching import issue_development_offers
 from apps.requests.models import (
+    ACTIVE_CUSTOMER_REQUEST_STATUSES,
     RequestStatus,
     ServiceRequest,
     ServiceRequestStatusHistory,
@@ -59,6 +64,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         help_text="Customer phone. Included only for the assigned mechanic.",
     )
     status_history = StatusHistorySerializer(many=True, read_only=True)
+    rating = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceRequest
@@ -92,6 +98,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             "cancelled_by",
             "cancellation_reason",
             "status_history",
+            "rating",
             "created_at",
             "updated_at",
         )
@@ -162,6 +169,17 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             return None
         return customer_user.phone
 
+    def get_rating(self, obj):
+        try:
+            rating = obj.rating
+        except ObjectDoesNotExist:
+            return None
+        return {
+            "stars": rating.stars,
+            "feedback": rating.feedback,
+            "created_at": rating.created_at,
+        }
+
 
 class ServiceRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -210,29 +228,40 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context["request"]
-        customer = request.user.customer_profile
-        service = validated_data["service"]
-        problem = validated_data["problem"]
-        instance = ServiceRequest.objects.create(
-            customer=customer,
-            status=RequestStatus.REQUESTED,
-            assigned_mechanic=None,
-            requested_at=timezone.now(),
-            **price_init_kwargs(estimate_for_request(service, problem)),
-            **validated_data,
-        )
-        ServiceRequestStatusHistory.objects.create(
-            request=instance,
-            from_status="",
-            to_status=RequestStatus.REQUESTED,
-            changed_by=request.user,
-            note="Request created",
-        )
-        from apps.requests.matching import issue_development_offers
-
-        issue_development_offers(instance, changed_by=request.user)
-        instance.refresh_from_db()
-        return instance
+        with transaction.atomic():
+            customer = CustomerProfile.objects.select_for_update().get(
+                pk=request.user.customer_profile.pk
+            )
+            if ServiceRequest.objects.filter(
+                customer=customer,
+                status__in=ACTIVE_CUSTOMER_REQUEST_STATUSES,
+            ).exists():
+                raise Conflict("You already have an active assistance request.")
+            service = validated_data["service"]
+            problem = validated_data["problem"]
+            try:
+                instance = ServiceRequest.objects.create(
+                    customer=customer,
+                    status=RequestStatus.REQUESTED,
+                    assigned_mechanic=None,
+                    requested_at=timezone.now(),
+                    **price_init_kwargs(estimate_for_request(service, problem)),
+                    **validated_data,
+                )
+            except IntegrityError as exc:
+                raise Conflict(
+                    "You already have an active assistance request."
+                ) from exc
+            ServiceRequestStatusHistory.objects.create(
+                request=instance,
+                from_status="",
+                to_status=RequestStatus.REQUESTED,
+                changed_by=request.user,
+                note="Request created",
+            )
+            issue_development_offers(instance, changed_by=request.user)
+            instance.refresh_from_db()
+            return instance
 
     def to_representation(self, instance):
         return ServiceRequestSerializer(instance, context=self.context).data

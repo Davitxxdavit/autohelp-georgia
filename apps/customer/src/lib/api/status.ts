@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/datetime';
 import type { StatusTone } from '@/components/ui/StatusBadge';
 
 import type { ApiRequestStatus } from './types';
@@ -124,8 +125,16 @@ export function formatRequestPrice(request: {
   );
 }
 
+export const CUSTOMER_CANCELABLE_STATUSES: readonly ApiRequestStatus[] = [
+  'REQUESTED',
+  'SEARCHING',
+  'ASSIGNED',
+];
+
+export function customerCanCancel(status: string): boolean {
+  return (CUSTOMER_CANCELABLE_STATUSES as readonly string[]).includes(status);
+}
+
 export function formatRequestTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString();
+  return formatDateTime(iso);
 }

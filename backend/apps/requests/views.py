@@ -10,9 +10,11 @@ from rest_framework.response import Response
 from apps.accounts.models import Role
 from apps.common.permissions import IsCustomer
 from apps.common.schema import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHORIZED, VALIDATION_ERROR
+from apps.common.throttles import PriceActionThrottle, RequestCreateThrottle
 from apps.requests.exceptions import Conflict
 from apps.requests.location import require_route_access
 from apps.requests.models import (
+    ACTIVE_CUSTOMER_REQUEST_STATUSES,
     CancelledBy,
     MechanicRequestOffer,
     OfferStatus,
@@ -62,6 +64,8 @@ CUSTOMER_CANCELABLE_STATUSES = (
             "customer_latitude, customer_longitude, customer_address.\n\n"
             "Backend sets `status=REQUESTED`. Clients cannot assign a mechanic, "
             "set status, or send estimates/timestamps.\n\n"
+            "A customer may have only one active request. A second create "
+            "returns 409.\n\n"
             "Catalog estimates (not guaranteed): Battery 30.00 GEL, "
             "Battery replacement 60.00 GEL, Diagnostics 50.00 GEL, "
             "Auto Key `estimated_price_amount` is null."
@@ -72,6 +76,7 @@ CUSTOMER_CANCELABLE_STATUSES = (
             400: VALIDATION_ERROR,
             401: UNAUTHORIZED,
             403: FORBIDDEN,
+            409: CONFLICT,
         },
         examples=[
             OpenApiExample(
@@ -122,6 +127,7 @@ class ServiceRequestViewSet(
             "problem",
             "assigned_mechanic",
             "assigned_mechanic__user",
+            "rating",
         ).prefetch_related("status_history")
         if user.is_staff:
             return qs
@@ -132,7 +138,7 @@ class ServiceRequestViewSet(
         return qs.none()
 
     def get_permissions(self):
-        if self.action in ("create", "cancel", "approve_price", "reject_price"):
+        if self.action in ("create", "cancel", "approve_price", "reject_price", "active"):
             return [IsAuthenticated(), IsCustomer()]
         return [IsAuthenticated()]
 
@@ -141,10 +147,47 @@ class ServiceRequestViewSet(
             return ServiceRequestCreateSerializer
         return ServiceRequestSerializer
 
+    def get_throttles(self):
+        if self.action == "create":
+            return [RequestCreateThrottle()]
+        if self.action in ("approve_price", "reject_price"):
+            return [PriceActionThrottle()]
+        return []
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    @extend_schema(
+        tags=["Requests"],
+        summary="Get the customer's current active request",
+        description=(
+            "Returns the authenticated customer's in-progress request, if any. "
+            "Completed, cancelled, and declined requests are not active. "
+            "204 when none."
+        ),
+        responses={
+            200: ServiceRequestSerializer,
+            204: None,
+            401: UNAUTHORIZED,
+            403: FORBIDDEN,
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="active")
+    def active(self, request):
+        service_request = (
+            self.get_queryset()
+            .filter(status__in=ACTIVE_CUSTOMER_REQUEST_STATUSES)
+            .order_by("-created_at")
+            .first()
+        )
+        if service_request is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = ServiceRequestSerializer(
+            service_request, context=self.get_serializer_context()
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["Requests"],

@@ -21,7 +21,6 @@ export type BatteryProblemId = (typeof BATTERY_PROBLEM_IDS)[number];
 export type {
   MockGeoPoint,
   MockLocation,
-  MockMechanic,
   MockMoney,
   ServiceRating,
 } from '@/features/services/flow/types';

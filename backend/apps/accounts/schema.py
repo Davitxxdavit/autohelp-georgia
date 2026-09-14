@@ -70,3 +70,13 @@ class CurrentUserSerializer(serializers.Serializer):
     phone = serializers.CharField()
     role = serializers.CharField()
     first_name = serializers.CharField()
+
+
+class CurrentUserUpdateSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=80)
+
+    def validate_first_name(self, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("This field may not be blank.")
+        return name

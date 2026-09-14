@@ -10,6 +10,7 @@ from apps.accounts.schema import (
     TokenRefreshResponseSerializer,
 )
 from apps.common.schema import UNAUTHORIZED
+from apps.common.throttles import AuthRateThrottle
 
 
 class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -48,6 +49,7 @@ class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
 class PhoneTokenObtainPairView(TokenObtainPairView):
     permission_classes = [AllowAny]
     serializer_class = PhoneTokenObtainPairSerializer
+    throttle_classes = [AuthRateThrottle]
 
 
 @extend_schema(
@@ -66,3 +68,4 @@ class PhoneTokenObtainPairView(TokenObtainPairView):
 )
 class PhoneTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]

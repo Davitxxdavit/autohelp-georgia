@@ -40,7 +40,8 @@ export default function DiagnosticsTrackingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'tracking',
     routes: DIAGNOSTICS_FLOW_ROUTES,
@@ -91,7 +92,7 @@ export default function DiagnosticsTrackingScreen() {
             customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
             kind="diagnostics"
           />
-          <RequestPollHint pollError={pollError} />
+          <RequestPollHint pollError={pollError} onRetry={retry} />
         </Reveal>
 
         <Reveal delayMs={timing.slow}>

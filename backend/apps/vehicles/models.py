@@ -36,6 +36,8 @@ class Vehicle(TimeStampedModel):
         validators=[validate_vin],
         help_text="Optional 17-character VIN. Stored uppercase. Unique when present.",
     )
+    nickname = models.CharField(max_length=80, blank=True, default="")
+    is_primary = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-created_at"]
@@ -44,7 +46,12 @@ class Vehicle(TimeStampedModel):
                 fields=["vin"],
                 condition=models.Q(vin__isnull=False),
                 name="unique_vin_when_present",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["customer"],
+                condition=models.Q(is_primary=True),
+                name="one_primary_vehicle_per_customer",
+            ),
         ]
 
     def clean(self):

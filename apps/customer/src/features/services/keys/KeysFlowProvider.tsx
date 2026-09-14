@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import type { ApiServiceRequest } from '@/lib/api/types';
+import { locationSnapshotFromRequest } from '@/features/services/flow/requestFlow';
 import type { MockLocation } from '@/features/services/flow/types';
 
 import type { KeysDraft, KeysProblemId, KeysRating } from './types';
@@ -142,6 +143,20 @@ export function KeysFlowProvider({ children }: { children: ReactNode }) {
   return (
     <KeysFlowContext.Provider value={value}>{children}</KeysFlowContext.Provider>
   );
+}
+
+export function hydrateKeysDraftFromRequest(request: ApiServiceRequest): void {
+  persistDraft({
+    ...createEmptyDraft(),
+    vehicleId: request.vehicle?.id ?? null,
+    serviceRequestId: request.id,
+    liveRequest: request,
+    requestedAt: request.requested_at ?? request.created_at,
+    completedAt: request.completed_at,
+    backendEstimatedPriceAmount: request.estimated_price_amount,
+    backendEstimatedPriceCurrency: request.estimated_price_currency,
+    location: locationSnapshotFromRequest(request),
+  });
 }
 
 export function useKeysFlow(): KeysFlowContextValue {

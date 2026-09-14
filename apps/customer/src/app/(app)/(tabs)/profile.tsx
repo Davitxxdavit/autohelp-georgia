@@ -1,28 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { AppText } from '@/components/ui/AppText';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Surface } from '@/components/ui/Surface';
-import { getCurrentUser } from '@/lib/api/auth';
+import { getCurrentUser, updateCurrentUser } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/errors';
 import type { CurrentUser } from '@/lib/api/types';
 import { useSession } from '@/services/session/SessionProvider';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
+import { typography } from '@/theme/typography';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { session, signOut, resetAppStateForDev } = useSession();
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [firstNameDraft, setFirstNameDraft] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const refreshProfile = useCallback(async () => {
     try {
       const next = await getCurrentUser();
       setMe(next);
+      setFirstNameDraft(next.first_name ?? '');
       setLoadError(null);
     } catch (error) {
       setLoadError(
@@ -57,6 +62,27 @@ export default function ProfileScreen() {
   const firstName = me?.first_name?.trim() || 'Customer';
   const phone = me?.phone || session.phone || '—';
   const role = me?.role || 'CUSTOMER';
+  const canSaveName =
+    firstNameDraft.trim().length > 0 &&
+    firstNameDraft.trim() !== (me?.first_name ?? '') &&
+    !saving;
+
+  const onSaveName = async () => {
+    if (!canSaveName) return;
+    setSaving(true);
+    try {
+      const next = await updateCurrentUser({ first_name: firstNameDraft.trim() });
+      setMe(next);
+      setFirstNameDraft(next.first_name);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        isApiError(error) ? error.message : 'Could not update name.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.xl }]}>
@@ -72,6 +98,24 @@ export default function ProfileScreen() {
         <AppText variant="caption" color="textMuted">
           {phone}
         </AppText>
+        <AppText variant="caption" color="textMuted">
+          First name
+        </AppText>
+        <TextInput
+          value={firstNameDraft}
+          onChangeText={setFirstNameDraft}
+          autoCapitalize="words"
+          placeholder="First name"
+          placeholderTextColor={colors.textMuted}
+          style={styles.input}
+        />
+        <PrimaryButton
+          label={saving ? 'Saving…' : 'Save name'}
+          disabled={!canSaveName}
+          onPress={() => {
+            void onSaveName();
+          }}
+        />
         {loadError ? (
           <AppText variant="caption" color="danger">
             {loadError}
@@ -121,5 +165,14 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: spacing.xxs,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    ...typography.body,
   },
 });

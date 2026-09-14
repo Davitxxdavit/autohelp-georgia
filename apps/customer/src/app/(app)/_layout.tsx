@@ -1,11 +1,13 @@
 import { Stack } from 'expo-router';
 
+import { ActiveRequestProvider } from '@/features/requests/ActiveRequestProvider';
 import { VehiclesProvider } from '@/features/vehicles/VehiclesProvider';
 import { colors } from '@/theme/colors';
 
 export default function AppLayout() {
   return (
     <VehiclesProvider>
+      <ActiveRequestProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -17,6 +19,16 @@ export default function AppLayout() {
         <Stack.Screen name="battery" />
         <Stack.Screen name="diagnostics" />
         <Stack.Screen name="keys" />
+        <Stack.Screen
+          name="order/[id]"
+          options={{
+            headerShown: true,
+            headerTitle: 'Request',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.textPrimary,
+            headerShadowVisible: false,
+          }}
+        />
         <Stack.Screen
           name="request/[service]"
           options={{
@@ -68,6 +80,7 @@ export default function AppLayout() {
           }}
         />
       </Stack>
+      </ActiveRequestProvider>
     </VehiclesProvider>
   );
 }

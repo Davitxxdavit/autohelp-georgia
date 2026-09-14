@@ -70,7 +70,8 @@ export default function BatteryTrackingScreen() {
     [markCompleted, setLiveRequest],
   );
 
-  const { request, notFound, pollError, replaceRequest } = useRequestFlowSync({
+  const { request, notFound, pollError, replaceRequest, retry } =
+    useRequestFlowSync({
     requestId: draft.serviceRequestId,
     currentPhase: 'tracking',
     routes: BATTERY_FLOW_ROUTES,
@@ -126,7 +127,7 @@ export default function BatteryTrackingScreen() {
             customerPoint={customerPointFromLiveOrDraft(live, draft.location)}
             kind="battery"
           />
-          <RequestPollHint pollError={pollError} />
+          <RequestPollHint pollError={pollError} onRetry={retry} />
         </Reveal>
 
         <Reveal delayMs={timing.slow}>

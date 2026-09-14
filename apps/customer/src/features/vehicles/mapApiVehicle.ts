@@ -1,14 +1,8 @@
 import type { ApiVehicle } from '@/lib/api/types';
 
-import type { VehicleUiMeta } from './localMeta';
 import { isFuelType, type Vehicle, type VehicleInput } from './types';
 
-export function mapApiVehicleToUi(
-  api: ApiVehicle,
-  meta: VehicleUiMeta,
-  fallbackPrimaryId: string | null,
-): Vehicle {
-  const primaryId = meta.primaryId ?? fallbackPrimaryId;
+export function mapApiVehicleToUi(api: ApiVehicle): Vehicle {
   return {
     id: api.id,
     make: api.make,
@@ -16,28 +10,16 @@ export function mapApiVehicleToUi(
     year: api.year,
     engine: api.engine?.trim() || undefined,
     fuel: isFuelType(api.fuel) ? api.fuel : 'petrol',
-    nickname: meta.nicknames[api.id],
-    isPrimary: primaryId === api.id,
+    nickname: api.nickname?.trim() || undefined,
+    isPrimary: Boolean(api.is_primary),
     createdAt: api.created_at,
     licensePlate: api.license_plate || undefined,
     vin: api.vin,
   };
 }
 
-export function mapApiVehiclesToUi(
-  apis: ApiVehicle[],
-  meta: VehicleUiMeta,
-): Vehicle[] {
-  const fallbackPrimaryId = apis[0]?.id ?? null;
-  const mapped = apis.map((item) =>
-    mapApiVehicleToUi(item, meta, fallbackPrimaryId),
-  );
-  if (mapped.length === 0) return mapped;
-  if (mapped.some((item) => item.isPrimary)) return mapped;
-  return mapped.map((item, index) => ({
-    ...item,
-    isPrimary: index === 0,
-  }));
+export function mapApiVehiclesToUi(apis: ApiVehicle[]): Vehicle[] {
+  return apis.map(mapApiVehicleToUi);
 }
 
 export function toVehicleWritePayload(input: VehicleInput) {
@@ -47,5 +29,7 @@ export function toVehicleWritePayload(input: VehicleInput) {
     year: input.year,
     engine: input.engine?.trim() ?? '',
     fuel: input.fuel,
+    nickname: input.nickname?.trim() ?? '',
+    is_primary: Boolean(input.isPrimary),
   };
 }

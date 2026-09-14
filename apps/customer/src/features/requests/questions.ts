@@ -93,7 +93,7 @@ export const ESTIMATED_PRICE: Record<ServiceId, string> = {
 export const MOCK_LOCATION = {
   label: 'Batumi, Georgia',
   shortLabel: 'Batumi',
-  pinHint: 'Mock location — GPS arrives later',
+  pinHint: 'Placeholder only — unused by Battery / Diagnostics / Auto Key',
 } as const;
 
 /** @deprecated Use MOCK_LOCATION.label */

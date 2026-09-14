@@ -1,4 +1,4 @@
-export { obtainTokenPair, refreshTokenPair, registerCustomer, getCurrentUser } from './auth';
+export { obtainTokenPair, refreshTokenPair, registerCustomer, getCurrentUser, updateCurrentUser } from './auth';
 export { apiGetList, apiRequest, unwrapList } from './client';
 export { getApiBaseUrl, isApiConfigured, requireApiBaseUrl } from './config';
 export { obtainDevelopmentJwt } from './devAuth';
@@ -19,6 +19,7 @@ export {
   cancelServiceRequest,
   approveRequestPrice,
   rejectRequestPrice,
+  getActiveServiceRequest,
   getServiceRequest,
   getRequestRoute,
   listServiceRequests,
@@ -52,6 +53,7 @@ export {
   formatRequestEstimate,
   formatRequestPrice,
   formatRequestTime,
+  customerCanCancel,
   isActiveRequestStatus,
   isApiRequestStatus,
   isHistoryRequestStatus,

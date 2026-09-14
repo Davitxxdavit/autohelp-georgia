@@ -88,6 +88,68 @@ class VehicleOwnershipTests(APITestCase):
         self.assertEqual(Vehicle.objects.filter(vin__isnull=True).count(), 3)
 
 
+class VehiclePrimaryTests(APITestCase):
+    def setUp(self):
+        self.user, self.customer = make_customer("+995555000111", "A")
+        self.other_user, self.other = make_customer("+995555000112", "B")
+
+    def test_first_vehicle_is_primary(self):
+        self.client.force_authenticate(self.user)
+        first = self.client.post(
+            "/api/v1/vehicles/",
+            {"make": "BMW", "model": "i8", "year": 2015, "fuel": "hybrid"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED, first.data)
+        self.assertTrue(first.data["is_primary"])
+        self.assertEqual(first.data["nickname"], "")
+
+        second = self.client.post(
+            "/api/v1/vehicles/",
+            {
+                "make": "Toyota",
+                "model": "Prius",
+                "year": 2018,
+                "fuel": "hybrid",
+                "nickname": "Family",
+            },
+            format="json",
+        )
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED, second.data)
+        self.assertFalse(second.data["is_primary"])
+        self.assertEqual(second.data["nickname"], "Family")
+
+        promoted = self.client.patch(
+            f"/api/v1/vehicles/{second.data['id']}/",
+            {"is_primary": True},
+            format="json",
+        )
+        self.assertEqual(promoted.status_code, status.HTTP_200_OK)
+        self.assertTrue(promoted.data["is_primary"])
+        previous = self.client.get(f"/api/v1/vehicles/{first.data['id']}/")
+        self.assertFalse(previous.data["is_primary"])
+
+        deleted = self.client.delete(f"/api/v1/vehicles/{second.data['id']}/")
+        self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
+        remaining = self.client.get(f"/api/v1/vehicles/{first.data['id']}/")
+        self.assertTrue(remaining.data["is_primary"])
+
+    def test_cannot_patch_another_customers_vehicle(self):
+        self.client.force_authenticate(self.user)
+        created = self.client.post(
+            "/api/v1/vehicles/",
+            {"make": "BMW", "model": "i8", "year": 2015, "fuel": "hybrid"},
+            format="json",
+        )
+        self.client.force_authenticate(self.other_user)
+        response = self.client.patch(
+            f"/api/v1/vehicles/{created.data['id']}/",
+            {"nickname": "Stolen", "is_primary": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 class RequestApiTests(APITestCase):
     def setUp(self):
         seed_catalog(service_model=Service, problem_model=ServiceProblem)

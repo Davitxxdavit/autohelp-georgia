@@ -26,15 +26,6 @@ export function isLocationCaptureError(
 
 const CAPTURE_TIMEOUT_MS = 20_000;
 
-/** Offset from the customer pin — unused in the live request flow. */
-export const MOCK_SPECIALIST_POINT = {
-  latitude: 41.6284,
-  longitude: 41.6452,
-};
-
-/** Historic mock delay. Request progression polls Django status. */
-export const SEARCH_DELAY_MS = 2400;
-
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {

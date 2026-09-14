@@ -14,7 +14,7 @@ import { AppText } from '@/components/ui/AppText';
 import { GradientSurface } from '@/components/ui/GradientSurface';
 import { OrderCard } from '@/features/orders/OrderCard';
 import { isApiError, type ApiError } from '@/lib/api/errors';
-import { listServiceRequestsFirstPage } from '@/lib/api/requests';
+import { listServiceRequests } from '@/lib/api/requests';
 import { isHistoryRequestStatus } from '@/lib/api/status';
 import type { ApiServiceRequest } from '@/lib/api/types';
 import { colors } from '@/theme/colors';
@@ -33,7 +33,7 @@ export default function OrdersScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const next = await listServiceRequestsFirstPage();
+      const next = await listServiceRequests();
       setRequests(next);
     } catch (caught) {
       if (__DEV__) {

@@ -303,6 +303,22 @@ export function MechanicSessionProvider({ children }: { children: ReactNode }) {
           console.warn('[AutoHelp Mechanic] status', error.status, 'body', error.body);
         }
       }
+      if (isApiError(error) && error.status === 409) {
+        try {
+          const active = await getActiveJob();
+          if (active) {
+            const recovered = mapOfferToJob(
+              active,
+              jobStatusFromRequest(active.request.status),
+            );
+            setActiveJob(recovered);
+            setPendingOffer(null);
+            return recovered;
+          }
+        } catch {
+          // Fall through to refresh.
+        }
+      }
       void refreshIncoming();
       return null;
     }

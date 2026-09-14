@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
@@ -33,6 +33,7 @@ const EMPTY_SUMMARY: ApiMechanicEarningsSummary = {
 
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [summary, setSummary] = useState<ApiMechanicEarningsSummary>(EMPTY_SUMMARY);
   const [results, setResults] = useState<ApiMechanicEarning[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +112,10 @@ export default function EarningsScreen() {
       }
     >
       <AppText variant="h2">Earnings</AppText>
+      <PrimaryButton
+        label="Job history"
+        onPress={() => router.push('/history' as Href)}
+      />
 
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>

@@ -2,19 +2,14 @@
 
 from apps.accounts.models import ApprovalStatus, MechanicProfile, Role
 from apps.requests.models import (
+    ACTIVE_MECHANIC_JOB_STATUSES,
     MechanicRequestOffer,
     OfferStatus,
     RequestStatus,
     ServiceRequest,
 )
 
-ACTIVE_JOB_STATUSES = (
-    RequestStatus.ASSIGNED,
-    RequestStatus.ACCEPTED,
-    RequestStatus.ON_THE_WAY,
-    RequestStatus.ARRIVED,
-    RequestStatus.IN_PROGRESS,
-)
+ACTIVE_JOB_STATUSES = ACTIVE_MECHANIC_JOB_STATUSES
 
 
 def eligible_mechanics_for_service(service):

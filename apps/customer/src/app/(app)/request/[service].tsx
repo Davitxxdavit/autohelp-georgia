@@ -5,7 +5,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter, Redirect } from 'expo-router';
 
 import { ServiceIcon } from '@/components/automotive/ServiceIcon';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
@@ -42,6 +42,11 @@ type WizardStep = 'need' | 'vehicle' | 'location' | 'confirm';
 
 const STEPS: WizardStep[] = ['need', 'vehicle', 'location', 'confirm'];
 
+/**
+ * Legacy request wizard. Battery / Diagnostics / Auto Key use dedicated GPS
+ * flows. This screen only remains so leftover /request/[service] deep links
+ * redirect instead of creating a mock-location draft.
+ */
 export default function RequestServiceScreen() {
   const router = useRouter();
   const { service: serviceParam } = useLocalSearchParams<{ service: string }>();
@@ -143,6 +148,16 @@ export default function RequestServiceScreen() {
       setSubmitting(false);
     }
   };
+
+  if (serviceId === 'battery') {
+    return <Redirect href="/battery" />;
+  }
+  if (serviceId === 'diagnostics') {
+    return <Redirect href="/diagnostics" />;
+  }
+  if (serviceId === 'keys') {
+    return <Redirect href="/keys" />;
+  }
 
   if (!service || !question || !pricing || !mvpAllowed) {
     return (

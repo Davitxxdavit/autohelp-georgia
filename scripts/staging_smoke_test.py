@@ -216,6 +216,7 @@ class SmokeSuite:
         self.catalog: dict[str, Any] = {}
         self.created_request_ids: list[str] = []
         self.mechanic_was_online = False
+        self.mechanic_service_ids: list[str] = []
 
     def check(self, name: str, fn) -> None:
         try:
@@ -288,6 +289,11 @@ class SmokeSuite:
                 f"(approval_status={body.get('approval_status')}, verified={body.get('verified')})."
             )
         self.mechanic_was_online = bool(body.get("online"))
+        self.mechanic_service_ids = [
+            str(item.get("id"))
+            for item in (body.get("services") or [])
+            if isinstance(item, dict) and item.get("id")
+        ]
         return body
 
     def mechanic_online(self, online: bool) -> None:
@@ -565,6 +571,97 @@ class SmokeSuite:
             f"(id={request_id}, status={status}). Finish it, then re-run the smoke test."
         )
 
+    def ensure_customer_has_no_active_request(self) -> None:
+        result = self.client.request(
+            "GET",
+            "/requests/active/",
+            role="customer",
+            expected=(200, 204),
+        )
+        if result.status == 204:
+            return
+        body = result.body if isinstance(result.body, dict) else {}
+        request_id = str(body.get("id") or "")
+        status = body.get("status")
+        if status in {"REQUESTED", "SEARCHING", "ASSIGNED"} and request_id:
+            self.client.request(
+                "POST",
+                f"/requests/{request_id}/cancel/",
+                role="customer",
+                expected=(200, 409),
+            )
+            again = self.client.request(
+                "GET", "/requests/active/", role="customer", expected=(200, 204)
+            )
+            if again.status == 204:
+                return
+        raise CheckFailure(
+            "Customer already has an active request that cannot be cancelled "
+            f"(id={request_id}, status={status}). Finish it, then re-run."
+        )
+
+    def vehicle_primary_roundtrip(self) -> None:
+        vehicle_id = self.ensure_vehicle()
+        patched = self.client.request(
+            "PATCH",
+            f"/vehicles/{vehicle_id}/",
+            role="customer",
+            expected=200,
+            body={"nickname": "Smoke", "is_primary": True},
+        )
+        if patched.body.get("is_primary") is not True:
+            raise CheckFailure("Vehicle is_primary was not persisted")
+        if patched.body.get("nickname") != "Smoke":
+            raise CheckFailure("Vehicle nickname was not persisted")
+
+    def restore_mechanic_services(self) -> None:
+        if not self.mechanic_service_ids:
+            return
+        try:
+            self.client.request(
+                "PATCH",
+                "/mechanic/me/",
+                role="mechanic",
+                expected=200,
+                body={"services": self.mechanic_service_ids},
+            )
+        except CheckFailure as exc:
+            print(f"Cleanup warning: could not restore mechanic services ({exc.message})")
+
+    def assert_customer_history_contains(self, request_id: str) -> None:
+        path = "/requests/"
+        absolute = False
+        while path:
+            result = self.client.request(
+                "GET", path, role="customer", expected=200, absolute=absolute
+            )
+            rows = results_of(result.body)
+            if any(str(row.get("id")) == str(request_id) for row in rows):
+                return
+            nxt = result.body.get("next") if isinstance(result.body, dict) else None
+            if not nxt:
+                break
+            path = str(nxt)
+            absolute = path.startswith("http")
+        raise CheckFailure(f"Customer history missing request {request_id}")
+
+    def assert_mechanic_history_contains(self, request_id: str) -> None:
+        path = "/mechanic/jobs/history/"
+        absolute = False
+        while path:
+            result = self.client.request(
+                "GET", path, role="mechanic", expected=200, absolute=absolute
+            )
+            rows = results_of(result.body)
+            if any(str(row.get("request_id")) == str(request_id) for row in rows):
+                return
+            nxt = result.body.get("next") if isinstance(result.body, dict) else None
+            if not nxt:
+                break
+            path = str(nxt)
+            absolute = path.startswith("http")
+        raise CheckFailure(f"Mechanic history missing request {request_id}")
+
     def cleanup_open_requests(self) -> None:
         for request_id in list(self.created_request_ids):
             try:
@@ -615,6 +712,27 @@ class SmokeSuite:
                 )
             if created.get("quote_status") != "APPROVED":
                 raise CheckFailure(f"quote_status was {created.get('quote_status')}")
+            active = self.client.request(
+                "GET", "/requests/active/", role="customer", expected=200
+            )
+            if str(active.body.get("id")) != request_id:
+                raise CheckFailure("Active request id mismatch after create")
+            duplicate = self.client.request(
+                "POST",
+                "/requests/",
+                role="customer",
+                expected=409,
+                body={
+                    "vehicle": self.customer_vehicle_id,
+                    "service": created.get("service"),
+                    "problem": created.get("problem"),
+                    "customer_latitude": self.lat,
+                    "customer_longitude": self.lng,
+                    "customer_address": "duplicate smoke",
+                },
+            )
+            if duplicate.status != 409:
+                raise CheckFailure(f"Expected 409 on duplicate create, got {duplicate.status}")
 
         offer: dict[str, Any] = {}
 
@@ -685,6 +803,15 @@ class SmokeSuite:
         def _rating():
             self.rate_request(request_id)
 
+        def _history():
+            active = self.client.request(
+                "GET", "/requests/active/", role="customer", expected=204
+            )
+            if active.status != 204:
+                raise CheckFailure("Customer still has an active request after completion")
+            self.assert_customer_history_contains(request_id)
+            self.assert_mechanic_history_contains(request_id)
+
         self.check("Service catalog", _catalog)
         self.check("Customer vehicle ready", _vehicle)
         self.check("Customer request created", _create)
@@ -700,6 +827,7 @@ class SmokeSuite:
         self.check("Earnings", _earnings)
         self.check("Customer completed request", _customer_done)
         self.check("Customer rating", _rating)
+        self.check("History contains completed request", _history)
 
     def run_quote(self) -> None:
         print("\n--- Auto Key quote lifecycle ---\n")
@@ -933,6 +1061,11 @@ def main() -> int:
         )
         suite.check("Mechanic profile approved", suite.mechanic_me)
         suite.check("No leftover active job", suite.abort_if_active_job)
+        suite.check(
+            "No leftover customer request",
+            suite.ensure_customer_has_no_active_request,
+        )
+        suite.check("Vehicle primary persisted", suite.vehicle_primary_roundtrip)
         suite.check("Mechanic online", lambda: suite.mechanic_online(True))
         if run_diagnostics:
             suite.run_diagnostics()
@@ -944,6 +1077,7 @@ def main() -> int:
         exit_code = 1
     finally:
         suite.cleanup_open_requests()
+        suite.restore_mechanic_services()
         suite.set_mechanic_offline()
 
     duration = time.monotonic() - started

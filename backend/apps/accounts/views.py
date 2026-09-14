@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.schema import (
     CurrentUserSerializer,
+    CurrentUserUpdateSerializer,
     CustomerRegisterRequestSerializer,
     CustomerRegisterResponseSerializer,
     MechanicRegisterRequestSerializer,
@@ -14,6 +15,7 @@ from apps.accounts.schema import (
 )
 from apps.accounts.serializers import CustomerRegisterSerializer, MechanicRegisterSerializer
 from apps.common.schema import UNAUTHORIZED, VALIDATION_ERROR
+from apps.common.throttles import RegistrationRateThrottle
 
 
 @extend_schema(
@@ -44,6 +46,7 @@ from apps.common.schema import UNAUTHORIZED, VALIDATION_ERROR
 )
 class CustomerRegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
         serializer = CustomerRegisterSerializer(data=request.data)
@@ -96,6 +99,7 @@ class CustomerRegisterView(APIView):
 )
 class MechanicRegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request):
         serializer = MechanicRegisterSerializer(data=request.data)
@@ -120,33 +124,64 @@ class MechanicRegisterView(APIView):
         )
 
 
-@extend_schema(
-    tags=["Authentication"],
-    summary="Get the authenticated user profile",
-    description=(
-        "Returns the signed-in user's phone, role, and first name. "
-        "Does not include password or admin flags."
-    ),
-    responses={
-        200: CurrentUserSerializer,
-        401: UNAUTHORIZED,
-    },
-)
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
+    def _payload(self, user):
         first_name = ""
         if hasattr(user, "customer_profile"):
             first_name = user.customer_profile.first_name
         elif hasattr(user, "mechanic_profile"):
             first_name = user.mechanic_profile.first_name
-        return Response(
-            {
-                "id": str(user.id),
-                "phone": user.phone,
-                "role": user.role,
-                "first_name": first_name,
-            }
-        )
+        return {
+            "id": str(user.id),
+            "phone": user.phone,
+            "role": user.role,
+            "first_name": first_name,
+        }
+
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Get the authenticated user profile",
+        description=(
+            "Returns the signed-in user's phone, role, and first name. "
+            "Does not include password or admin flags."
+        ),
+        responses={
+            200: CurrentUserSerializer,
+            401: UNAUTHORIZED,
+        },
+    )
+    def get(self, request):
+        return Response(self._payload(request.user))
+
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Update the authenticated user's first name",
+        description=(
+            "Writable field: `first_name` only. Phone, role, approval, "
+            "verified, and staff flags cannot be changed here."
+        ),
+        request=CurrentUserUpdateSerializer,
+        responses={
+            200: CurrentUserSerializer,
+            400: VALIDATION_ERROR,
+            401: UNAUTHORIZED,
+        },
+    )
+    def patch(self, request):
+        serializer = CurrentUserUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        first_name = serializer.validated_data["first_name"]
+        user = request.user
+        if hasattr(user, "customer_profile"):
+            profile = user.customer_profile
+            profile.first_name = first_name
+            profile.save(update_fields=["first_name", "updated_at"])
+        elif hasattr(user, "mechanic_profile"):
+            profile = user.mechanic_profile
+            profile.first_name = first_name
+            profile.save(update_fields=["first_name", "updated_at"])
+        else:
+            return Response(self._payload(user))
+        return Response(self._payload(user))

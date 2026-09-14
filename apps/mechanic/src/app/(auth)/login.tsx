@@ -10,6 +10,7 @@ import { useMechanicSession } from '@/features/session/MechanicSessionProvider';
 import { obtainTokenPair } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/errors';
 import { setTokenPair } from '@/lib/api/tokens';
+import { useServerWakeCopy } from '@/lib/useServerWakeCopy';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
@@ -24,6 +25,7 @@ export default function MechanicLoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const wakeCopy = useServerWakeCopy(busy);
 
   const onContinue = async () => {
     if (busy) return;
@@ -99,6 +101,11 @@ export default function MechanicLoginScreen() {
       {error ? (
         <AppText variant="caption" color="danger">
           {error}
+        </AppText>
+      ) : null}
+      {wakeCopy ? (
+        <AppText variant="caption" color="textMuted">
+          {wakeCopy}
         </AppText>
       ) : null}
       <PrimaryButton

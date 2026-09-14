@@ -1,6 +1,6 @@
 import type { Href } from 'expo-router';
 
-import type { ApiServiceRequest } from '@/lib/api/types';
+import type { ApiServiceRequest, FrontendServiceId } from '@/lib/api/types';
 import { formatRequestPrice, requestStatusLabel } from '@/lib/api/status';
 
 import type { MechanicIdentity } from './types';
@@ -129,7 +129,49 @@ export function requestEstimateLabel(
   return formatRequestPrice(request);
 }
 
-/** Prefer the coordinates already stored on the request; else the captured draft snapshot. */
+export function flowKindFromServiceCode(
+  code: string,
+): FrontendServiceId | null {
+  if (code === 'BATTERY') return 'battery';
+  if (code === 'DIAGNOSTICS') return 'diagnostics';
+  if (code === 'AUTO_KEY') return 'keys';
+  return null;
+}
+
+export function routesForServiceCode(code: string): RequestFlowRoutes | null {
+  const kind = flowKindFromServiceCode(code);
+  if (kind === 'battery') return BATTERY_FLOW_ROUTES;
+  if (kind === 'diagnostics') return DIAGNOSTICS_FLOW_ROUTES;
+  if (kind === 'keys') return KEYS_FLOW_ROUTES;
+  return null;
+}
+
+export function hrefForRecoveredRequest(
+  request: ApiServiceRequest,
+): Href | null {
+  const routes = routesForServiceCode(request.service_code);
+  if (!routes) return null;
+  const phase = customerPhaseForStatus(request.status);
+  if (phase === 'searching') return routes.searching;
+  if (phase === 'found') return routes.found;
+  if (phase === 'tracking') return routes.tracking;
+  if (phase === 'completed') return routes.completed;
+  return routes.home;
+}
+
+export function locationSnapshotFromRequest(request: ApiServiceRequest) {
+  return {
+    id: `req_${request.id}`,
+    label: request.customer_address?.trim() || 'Saved request location',
+    city: '',
+    country: '',
+    point: {
+      latitude: Number(request.customer_latitude),
+      longitude: Number(request.customer_longitude),
+    },
+    source: 'request' as const,
+  };
+}
 export function customerPointFromLiveOrDraft(
   live: Pick<ApiServiceRequest, 'customer_latitude' | 'customer_longitude'> | null | undefined,
   location: { source?: string; point: { latitude: number; longitude: number } } | null | undefined,
@@ -139,7 +181,7 @@ export function customerPointFromLiveOrDraft(
   if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
     return { latitude, longitude };
   }
-  if (location?.source === 'device') {
+  if (location?.source === 'device' || location?.source === 'request') {
     return location.point;
   }
   return undefined;

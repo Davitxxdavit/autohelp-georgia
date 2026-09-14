@@ -14,6 +14,7 @@ import {
   getKeysProblem,
   PRICE_CONFIRM_LATER,
 } from '@/features/services/keys/mock';
+import { resumeCustomerRequest } from '@/features/requests/ActiveRequestProvider';
 import { isUsableDeviceLocation } from '@/features/services/flow/location';
 import { vehicleSubtitle, vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
@@ -72,7 +73,8 @@ export default function KeysSummaryScreen() {
         estimatedPriceAmount: created.estimated_price_amount,
         estimatedPriceCurrency: created.estimated_price_currency,
       });
-      router.push('/keys/searching' as Href);
+      const href = resumeCustomerRequest(created);
+      router.replace(href ?? ('/keys/searching' as Href));
     } catch (error) {
       if (__DEV__) {
         console.warn('[AutoHelp] Auto Key request create failed', error);

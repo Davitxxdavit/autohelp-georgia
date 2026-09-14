@@ -24,15 +24,11 @@ import {
 import { vehicleTitle } from '@/features/vehicles/display';
 import { useVehicles } from '@/features/vehicles/VehiclesProvider';
 import type { ApiServiceRequest } from '@/lib/api/types';
+import { formatDateTime } from '@/lib/datetime';
 import { timing } from '@/animations/timing';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
-
-function formatWhen(iso: string | null): string {
-  if (!iso) return new Date().toLocaleString();
-  return new Date(iso).toLocaleString();
-}
 
 export default function DiagnosticsCompletedScreen() {
   const insets = useSafeAreaInsets();
@@ -140,7 +136,7 @@ export default function DiagnosticsCompletedScreen() {
               <AppText variant="caption" color="textMuted">
                 Date / time
               </AppText>
-              <AppText variant="bodyMedium">{formatWhen(when)}</AppText>
+              <AppText variant="bodyMedium">{formatDateTime(when)}</AppText>
             </View>
           </View>
         </Reveal>
