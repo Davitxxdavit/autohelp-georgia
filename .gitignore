@@ -65,3 +65,48 @@ htmlcov/
 *.sqlite3
 backend/staticfiles/
 backend/media/
+
+# Extra secrets / credentials (keep out of public repo)
+*.pem
+*.crt
+*.cer
+*.keystore
+*.pfx
+*.der
+id_rsa*
+id_ed25519*
+credentials*.json
+service-account*.json
+*-service-account.json
+google-services.json
+GoogleService-Info.plist
+secrets/
+.secrets/
+.envrc
+.npmrc
+.pypirc
+.netrc
+
+# Local Claude / AI tool settings (personal)
+.claude/settings.local.json
+**/.claude/settings.local.json
+CLAUDE.local.md
+
+# Database dumps / local data
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.db
+
+# Logs
+*.log
+logs/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# EAS / Expo build output
+*.apk
+*.aab
+*.ipa
